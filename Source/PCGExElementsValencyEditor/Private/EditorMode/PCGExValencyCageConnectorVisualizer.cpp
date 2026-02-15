@@ -48,23 +48,25 @@ void FPCGExValencyCageConnectorVisualizer::DrawVisualization(const UActorCompone
 	const FTransform ConnectorTransform = ConnectorComp->GetComponentTransform();
 	const FVector ConnectorLocation = ConnectorTransform.GetLocation();
 
-	const APCGExValencyCageBase* OwnerCage = Cast<APCGExValencyCageBase>(ConnectorComp->GetOwner());
-	const UPCGExValencyConnectorSet* ConnectorSet = OwnerCage ? OwnerCage->GetEffectiveConnectorSet() : nullptr;
-	FLinearColor Color = ConnectorComp->GetEffectiveDebugColor(ConnectorSet);
-
-	if (!ConnectorComp->bEnabled)
-	{
-		Color.A *= Settings->ConnectorDisabledAlpha;
-	}
-
 	PDI->SetHitProxy(new HPCGExConnectorHitProxy(ConnectorComp));
 
 	const FQuat Rotation = ConnectorTransform.GetRotation();
 	const bool bSelected = ConnectorComp == UPCGExValencyCageEditorMode::GetSelectedConnector();
-	FPCGExValencyDrawHelper::DrawConnectorShape(
-		PDI, ConnectorLocation,
-		Rotation.GetForwardVector(), Rotation.GetRightVector(), Rotation.GetUpVector(),
-		ConnectorComp->Polarity, Settings->ConnectorVisualizerSize, Settings->ConnectorArrowLength, Color, bSelected);
+
+	if (!ConnectorComp->bEnabled)
+	{
+		FPCGExValencyDrawHelper::DrawDisabledConnector(PDI, ConnectorLocation, Rotation, Settings->ConnectorVisualizerSize, bSelected);
+	}
+	else
+	{
+		const APCGExValencyCageBase* OwnerCage = Cast<APCGExValencyCageBase>(ConnectorComp->GetOwner());
+		const UPCGExValencyConnectorSet* ConnectorSet = OwnerCage ? OwnerCage->GetEffectiveConnectorSet() : nullptr;
+		const FLinearColor Color = ConnectorComp->GetEffectiveDebugColor(ConnectorSet);
+		FPCGExValencyDrawHelper::DrawConnectorShape(
+			PDI, ConnectorLocation,
+			Rotation.GetForwardVector(), Rotation.GetRightVector(), Rotation.GetUpVector(),
+			ConnectorComp->Polarity, Settings->ConnectorVisualizerSize, Settings->ConnectorArrowLength, Color, bSelected);
+	}
 
 	PDI->SetHitProxy(nullptr);
 }

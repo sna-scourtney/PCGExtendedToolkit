@@ -23,6 +23,8 @@
 #include "Cages/PCGExValencyAssetPalette.h"
 #include "Components/PCGExValencyCageConnectorComponent.h"
 #include "Volumes/ValencyContextVolume.h"
+#include "PCGExValencyEditorSettings.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGExValencyCageEditorMode)
 
@@ -244,6 +246,52 @@ void UPCGExValencyCageEditorMode::OnRenderCallback(IToolsContextRenderAPI* Rende
 				FPCGExValencyDrawHelper::DrawCageConnectors(PDI, Cage);
 			}
 		}
+
+		// Draw ghost mirror preview
+		if (GhostMirrorAxisMask != 0)
+		{
+			if (UPCGExValencyCageConnectorComponent* GhostConn = GhostMirrorConnector.Get())
+			{
+				if (GhostConn->bEnabled)
+				{
+					const UPCGExValencyEditorSettings* Settings = UPCGExValencyEditorSettings::Get();
+					if (Settings)
+					{
+						const bool bCtrl = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+						const FTransform T = FPCGExValencyDrawHelper::ComputeMirroredTransform(
+							GhostConn->GetRelativeTransform(), GhostMirrorAxisMask, bCtrl);
+
+						// Convert to world space
+						const AActor* GhostOwner = GhostConn->GetOwner();
+						const FTransform GhostWorld = GhostOwner ? T * GhostOwner->GetActorTransform() : T;
+						const FVector GhostLoc = GhostWorld.GetLocation();
+						const FQuat GhostRot = GhostWorld.GetRotation();
+
+						// Get connector color at reduced alpha
+						const APCGExValencyCageBase* OwnerCage = Cast<APCGExValencyCageBase>(GhostOwner);
+						const UPCGExValencyConnectorSet* ConnSet = OwnerCage ? OwnerCage->GetEffectiveConnectorSet() : nullptr;
+						FLinearColor GhostColor = GhostConn->GetEffectiveDebugColor(ConnSet);
+						GhostColor.A = 0.35f;
+
+						FPCGExValencyDrawHelper::DrawConnectorShape(
+							PDI, GhostLoc,
+							GhostRot.GetForwardVector(), GhostRot.GetRightVector(), GhostRot.GetUpVector(),
+							GhostConn->Polarity, Settings->ConnectorVisualizerSize, Settings->ConnectorArrowLength,
+							GhostColor, false);
+
+						// Draw ghost constraints at the preview transform
+						if (VisibilityFlags.bShowConstraints)
+						{
+							FLinearColor GhostConstraintColor = Settings->ConstraintZoneColor;
+							GhostConstraintColor.A *= 0.4f;
+							FPCGExValencyDrawHelper::DrawConnectorConstraintsAt(
+								PDI, GhostConn, GhostWorld,
+								EPCGExConstraintDetailLevel::Zone, GhostConstraintColor);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Draw constraint visualization
@@ -274,9 +322,9 @@ void UPCGExValencyCageEditorMode::OnRenderCallback(IToolsContextRenderAPI* Rende
 
 			if (SelectedConn && SelectedConn->GetOwner() == Cage)
 			{
-				// This cage has the selected connector — draw at Detail level
+				// This cage has the selected connector — Detail for selected, Zone for siblings
 				FPCGExValencyDrawHelper::DrawCageConstraints(
-					PDI, Cage, EPCGExConstraintDetailLevel::Detail, SelectedConn);
+					PDI, Cage, EPCGExConstraintDetailLevel::Zone, SelectedConn);
 			}
 			else if (bCageSelected)
 			{
@@ -438,6 +486,17 @@ void UPCGExValencyCageEditorMode::ModeTick(float DeltaTime)
 				Volume->ExecutePendingRegenerate();
 				RedrawViewports();
 			}
+		}
+	}
+
+	// Ghost mirror preview: redraw when Ctrl state changes so the ghost updates
+	if (GhostMirrorAxisMask != 0 && GhostMirrorConnector.IsValid())
+	{
+		const bool bCtrlNow = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+		if (bCtrlNow != bGhostLastCtrlState)
+		{
+			bGhostLastCtrlState = bCtrlNow;
+			RedrawViewports();
 		}
 	}
 }
@@ -887,6 +946,23 @@ void UPCGExValencyCageEditorMode::RedrawViewports()
 	}
 }
 
+// ========== Mirror Ghost Preview ==========
+
+void UPCGExValencyCageEditorMode::SetMirrorGhostPreview(UPCGExValencyCageConnectorComponent* Connector, int32 AxisMask)
+{
+	GhostMirrorAxisMask = AxisMask;
+	GhostMirrorConnector = Connector;
+	bGhostLastCtrlState = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+	RedrawViewports();
+}
+
+void UPCGExValencyCageEditorMode::ClearMirrorGhostPreview()
+{
+	GhostMirrorAxisMask = 0;
+	GhostMirrorConnector = nullptr;
+	RedrawViewports();
+}
+
 // ========== Widget Interface ==========
 
 bool UPCGExValencyCageEditorMode::UsesTransformWidget() const
@@ -986,6 +1062,12 @@ void UPCGExValencyCageEditorMode::RemoveConnector(UPCGExValencyCageConnectorComp
 		return;
 	}
 
+	// Protect Blueprint-defined connectors from deletion on instances
+	if (Connector->CreationMethod != EComponentCreationMethod::Instance)
+	{
+		return;
+	}
+
 	APCGExValencyCageBase* Cage = Cast<APCGExValencyCageBase>(Connector->GetOwner());
 	if (!Cage)
 	{
@@ -1079,7 +1161,9 @@ void UPCGExValencyCageEditorMode::ExecuteRemoveConnector()
 
 bool UPCGExValencyCageEditorMode::CanExecuteRemoveConnector() const
 {
-	return GetSelectedConnector() != nullptr;
+	UPCGExValencyCageConnectorComponent* Connector = GetSelectedConnector();
+	if (!Connector) return false;
+	return Connector->CreationMethod == EComponentCreationMethod::Instance;
 }
 
 void UPCGExValencyCageEditorMode::ExecuteDuplicateConnector()

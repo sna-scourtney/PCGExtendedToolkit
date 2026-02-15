@@ -114,6 +114,20 @@ public:
 	 */
 	static void DrawConnectorShape(FPrimitiveDrawInterface* PDI, const FVector& Location, const FVector& Forward, const FVector& Right, const FVector& Up, EPCGExConnectorPolarity Polarity, float Size, float PinLength, const FLinearColor& Color, bool bSelected = false);
 
+	/**
+	 * Draw a disabled connector indicator (gray cross on the connector plane).
+	 */
+	static void DrawDisabledConnector(FPrimitiveDrawInterface* PDI, const FVector& Location, const FQuat& Rotation, float Size, bool bSelected);
+
+	/**
+	 * Compute a mirrored relative transform by applying mirror operations per axis in the mask.
+	 * @param InTransform Source relative transform
+	 * @param AxisMask Bitmask of axes to mirror (bit 0=X, 1=Y, 2=Z)
+	 * @param bCageRelative If true, mirror position + orientation relative to cage. If false, flip-in-place (180° rotation).
+	 * @return The mirrored transform
+	 */
+	static FTransform ComputeMirroredTransform(const FTransform& InTransform, int32 AxisMask, bool bCageRelative);
+
 	// ========== Constraint Visualization ==========
 
 	/**
@@ -141,6 +155,17 @@ public:
 		const UPCGExValencyCageConnectorComponent* Connector,
 		EPCGExConstraintDetailLevel DetailLevel,
 		bool bIsSelectedConnector);
+
+	/**
+	 * Draw constraints for a connector at an overridden world transform (used for ghost previews).
+	 * Uses the connector's type/constraints but renders at the specified transform and color.
+	 */
+	static void DrawConnectorConstraintsAt(
+		FPrimitiveDrawInterface* PDI,
+		const UPCGExValencyCageConnectorComponent* Connector,
+		const FTransform& WorldTransform,
+		EPCGExConstraintDetailLevel DetailLevel,
+		const FLinearColor& Color);
 
 	// ========== Low-Level Drawing Primitives ==========
 
