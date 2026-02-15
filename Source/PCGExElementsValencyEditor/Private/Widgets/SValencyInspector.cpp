@@ -857,48 +857,200 @@ TSharedRef<SWidget> SValencyInspector::BuildConnectorContent(UPCGExValencyCageCo
 		}
 	}
 
-	// Action buttons
-	Content->AddSlot().AutoHeight().Padding(0, 4, 0, 0)
+	// Mirror buttons (X/Y/Z) — mirror connector orientation, optionally position
+	Content->AddSlot().AutoHeight().Padding(0, 6, 0, 2)
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0, 0, 4, 0)
-		[
-			SNew(SButton)
-			.Text(NSLOCTEXT("PCGExValency", "DuplicateConnector", "Duplicate"))
-			.ToolTipText(NSLOCTEXT("PCGExValency", "DuplicateConnectorTip", "Create a copy of this connector with a small offset (Ctrl+D)"))
-			.OnClicked_Lambda([WeakConnector, WeakMode]() -> FReply
-			{
-				if (UPCGExValencyCageConnectorComponent* S = WeakConnector.Get())
-				{
-					if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
-					{
-						Mode->DuplicateConnector(S);
-					}
-				}
-				return FReply::Handled();
-			})
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.Text(NSLOCTEXT("PCGExValency", "RemoveConnectorBtn", "Remove"))
-			.ToolTipText(NSLOCTEXT("PCGExValency", "RemoveConnectorTip", "Delete this connector from the cage (Delete key)"))
-			.OnClicked_Lambda([WeakConnector, WeakMode]() -> FReply
-			{
-				if (UPCGExValencyCageConnectorComponent* S = WeakConnector.Get())
-				{
-					if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
-					{
-						Mode->RemoveConnector(S);
-					}
-				}
-				return FReply::Handled();
-			})
-		]
+		MakeSectionHeader(NSLOCTEXT("PCGExValency", "MirrorHeader", "Mirror"))
 	];
+
+	{
+		auto MakeMirrorButton = [&](const FName& IconName, int32 AxisIndex, const FText& Tooltip) -> TSharedRef<SWidget>
+		{
+			return SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "PCGEx.ActionIcon")
+				.ToolTipText(Tooltip)
+				.OnClicked_Lambda([WeakConnector, WeakMode, AxisIndex, this]() -> FReply
+				{
+					if (UPCGExValencyCageConnectorComponent* S = WeakConnector.Get())
+					{
+						FScopedTransaction Transaction(NSLOCTEXT("PCGExValency", "MirrorConnector", "Mirror Connector"));
+						S->Modify();
+						FTransform T = S->GetRelativeTransform();
+						FQuat Rot = T.GetRotation();
+
+						const FModifierKeysState Mods = FSlateApplication::Get().GetModifierKeys();
+
+						if (Mods.IsControlDown())
+						{
+							// Mirror relative to cage: reflect forward/up across the plane, negate position
+							FVector Forward = Rot.GetForwardVector();
+							FVector Up = Rot.GetUpVector();
+							Forward[AxisIndex] = -Forward[AxisIndex];
+							Up[AxisIndex] = -Up[AxisIndex];
+							Rot = FRotationMatrix::MakeFromXZ(Forward, Up).ToQuat();
+
+							FVector Loc = T.GetTranslation();
+							Loc[AxisIndex] = -Loc[AxisIndex];
+							T.SetTranslation(Loc);
+						}
+						else
+						{
+							// Flip-in-place: 180° around a perpendicular local axis
+							// X,Y → rotate around Z (preserves up), Z → rotate around X (preserves forward)
+							static const FVector Axes[] = { FVector::ForwardVector, FVector::RightVector, FVector::UpVector };
+							static const int32 RotAxisMap[] = { 2, 2, 0 }; // X→Z, Y→Z, Z→X
+							Rot = Rot * FQuat(Axes[RotAxisMap[AxisIndex]], UE_PI);
+						}
+
+						T.SetRotation(Rot);
+
+						S->SetRelativeTransform(T);
+						if (APCGExValencyCageBase* Cage = Cast<APCGExValencyCageBase>(S->GetOwner()))
+						{
+							Cage->RequestRebuild(EValencyRebuildReason::AssetChange);
+						}
+						if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
+						{
+							Mode->RedrawViewports();
+						}
+						if (GEditor) { GEditor->NoteSelectionChange(); }
+					}
+					return FReply::Handled();
+				})
+				[
+					SNew(SImage).Image(FAppStyle::Get().GetBrush(IconName))
+				];
+		};
+
+		Content->AddSlot().AutoHeight().Padding(8, 1)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 2, 0)
+			[
+				MakeMirrorButton(
+					FName("PCGEx.ActionIcon.X"), 0,
+					NSLOCTEXT("PCGExValency", "MirrorXTip", "Reverse X direction (also flips Y, preserves Z). Ctrl: mirror relative to cage."))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 2, 0)
+			[
+				MakeMirrorButton(
+					FName("PCGEx.ActionIcon.Y"), 1,
+					NSLOCTEXT("PCGExValency", "MirrorYTip", "Reverse Y direction (also flips X, preserves Z). Ctrl: mirror relative to cage."))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				MakeMirrorButton(
+					FName("PCGEx.ActionIcon.Z"), 2,
+					NSLOCTEXT("PCGExValency", "MirrorZTip", "Reverse Z direction (also flips Y, preserves X). Ctrl: mirror relative to cage."))
+			]
+		];
+	}
+
+	// Action buttons
+	Content->AddSlot().AutoHeight().Padding(0, 6, 0, 2)
+	[
+		MakeSectionHeader(NSLOCTEXT("PCGExValency", "ActionsHeader", "Actions"))
+	];
+
+	{
+		const bool bIsBPDefined = (Connector->CreationMethod != EComponentCreationMethod::Instance);
+
+		// Reset button — for BP-defined connectors, resets editable properties to archetype defaults
+		if (bIsBPDefined)
+		{
+			Content->AddSlot().AutoHeight().Padding(0, 1, 0, 0)
+			[
+				SNew(SButton)
+				.Text(NSLOCTEXT("PCGExValency", "ResetConnector", "Reset to Blueprint Defaults"))
+				.ToolTipText(NSLOCTEXT("PCGExValency", "ResetConnectorTip", "Reset editable properties to Blueprint defaults. Hold Ctrl to also reset transform."))
+				.OnClicked_Lambda([WeakConnector, WeakMode, this]() -> FReply
+				{
+					UPCGExValencyCageConnectorComponent* S = WeakConnector.Get();
+					if (!S) { return FReply::Handled(); }
+
+					const UPCGExValencyCageConnectorComponent* Archetype = Cast<UPCGExValencyCageConnectorComponent>(S->GetArchetype());
+					if (!Archetype) { return FReply::Handled(); }
+
+					FScopedTransaction Transaction(NSLOCTEXT("PCGExValency", "ResetConnectorDefaults", "Reset Connector to Blueprint Defaults"));
+					S->Modify();
+
+					// Reset editable properties
+					S->bEnabled = Archetype->bEnabled;
+					S->Polarity = Archetype->Polarity;
+					S->DebugColorOverride = Archetype->DebugColorOverride;
+
+					// Ctrl held = also reset transform
+					const FModifierKeysState Mods = FSlateApplication::Get().GetModifierKeys();
+					if (Mods.IsControlDown())
+					{
+						S->SetRelativeTransform(Archetype->GetRelativeTransform());
+						if (GEditor) { GEditor->NoteSelectionChange(); }
+					}
+
+					if (APCGExValencyCageBase* Cage = Cast<APCGExValencyCageBase>(S->GetOwner()))
+					{
+						Cage->RequestRebuild(EValencyRebuildReason::AssetChange);
+					}
+					if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
+					{
+						Mode->RedrawViewports();
+					}
+					this->RefreshContent();
+					return FReply::Handled();
+				})
+			];
+		}
+
+		Content->AddSlot().AutoHeight().Padding(0, 1, 0, 0)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SButton)
+				.Text(NSLOCTEXT("PCGExValency", "DuplicateConnector", "Duplicate"))
+				.ToolTipText(NSLOCTEXT("PCGExValency", "DuplicateConnectorTip", "Create a copy of this connector with a small offset (Ctrl+D)"))
+				.OnClicked_Lambda([WeakConnector, WeakMode]() -> FReply
+				{
+					if (UPCGExValencyCageConnectorComponent* S = WeakConnector.Get())
+					{
+						if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
+						{
+							Mode->DuplicateConnector(S);
+						}
+					}
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.Text(NSLOCTEXT("PCGExValency", "RemoveConnectorBtn", "Remove"))
+				.ToolTipText(bIsBPDefined
+					? NSLOCTEXT("PCGExValency", "RemoveConnectorBPTip", "Cannot remove Blueprint-defined connector")
+					: NSLOCTEXT("PCGExValency", "RemoveConnectorTip", "Delete this connector from the cage (Delete key)"))
+				.IsEnabled(!bIsBPDefined)
+				.OnClicked_Lambda([WeakConnector, WeakMode]() -> FReply
+				{
+					if (UPCGExValencyCageConnectorComponent* S = WeakConnector.Get())
+					{
+						if (UPCGExValencyCageEditorMode* Mode = WeakMode.Get())
+						{
+							Mode->RemoveConnector(S);
+						}
+					}
+					return FReply::Handled();
+				})
+			]
+		];
+	}
 
 	return Content;
 }
