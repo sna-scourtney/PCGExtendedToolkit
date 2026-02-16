@@ -166,7 +166,7 @@ FTransform FPCGExValencyGrowthOperation::ComputeAttachmentTransform(
 	// Start from parent module rotation, then apply a minimal correction so the child's
 	// attachment connector faces opposite to the parent connector direction.
 	// This preserves the parent module's base orientation (yaw, twist) while tilting
-	// the child along the connector axis.
+	// the child along the connector axis. Uses quaternion math (no Euler angles, no gimbal lock).
 	const FVector ParentConnWorldFwd = ParentConnector.WorldTransform.GetRotation().GetForwardVector();
 	const FVector ChildConnLocalFwd = ChildConnectorLocal.GetRotation().GetForwardVector();
 
@@ -175,9 +175,11 @@ FTransform FPCGExValencyGrowthOperation::ComputeAttachmentTransform(
 
 	const FQuat CorrectionRot = FQuat::FindBetweenNormals(CurrentChildConnWorldFwd, DesiredChildConnWorldFwd);
 	const FQuat ChildModuleRot = CorrectionRot * ParentModuleWorld.GetRotation();
-	const FVector ChildModuleScale = ParentModuleWorld.GetScale3D();
 
-	// Position: parent connector world pos - child connector offset in the new module frame
+	// Scale: propagate from parent connector world (includes module scale * connector local scale)
+	const FVector ChildModuleScale = ParentConnector.WorldTransform.GetScale3D();
+
+	// Position: parent connector world pos - child connector offset rotated into the new module frame
 	const FVector ChildModulePos = ParentConnector.WorldTransform.GetTranslation()
 		- ChildModuleRot.RotateVector(ChildConnectorLocal.GetTranslation());
 
