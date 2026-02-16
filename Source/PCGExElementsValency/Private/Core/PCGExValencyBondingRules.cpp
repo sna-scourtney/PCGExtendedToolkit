@@ -144,24 +144,32 @@ bool UPCGExValencyBondingRules::Compile()
 			{
 				FPCGExValencyModuleConnector CompiledConnector = Connector;
 
-				// Compute orbital index from connector direction
-				// The connector's LocalOffset translation defines its position relative to module origin
-				const FVector ConnectorDirection = Connector.LocalOffset.GetTranslation().GetSafeNormal();
-
-				if (!ConnectorDirection.IsNearlyZero())
+				if (Connector.bManualOrbitalOverride)
 				{
-					// Use the orbital resolver to find matching orbital
-					// Note: For connectors, we typically don't transform by module rotation (connectors are module-local)
-					CompiledConnector.OrbitalIndex = OrbitalResolver.FindMatchingOrbital(
-						ConnectorDirection,
-						false, // Don't transform - connectors are in module-local space
-						FTransform::Identity
-					);
+					// Manual override - use user-specified orbital index
+					CompiledConnector.OrbitalIndex = FMath::Clamp(Connector.ManualOrbitalIndex, 0, 63);
 				}
 				else
 				{
-					// Connector at origin - assign to orbital 0 as fallback, or -1 for invalid
-					CompiledConnector.OrbitalIndex = PrimaryOrbitalSet->Num() > 0 ? 0 : -1;
+					// Compute orbital index from connector direction
+					// The connector's LocalOffset translation defines its position relative to module origin
+					const FVector ConnectorDirection = Connector.LocalOffset.GetTranslation().GetSafeNormal();
+
+					if (!ConnectorDirection.IsNearlyZero())
+					{
+						// Use the orbital resolver to find matching orbital
+						// Note: For connectors, we typically don't transform by module rotation (connectors are module-local)
+						CompiledConnector.OrbitalIndex = OrbitalResolver.FindMatchingOrbital(
+							ConnectorDirection,
+							false, // Don't transform - connectors are in module-local space
+							FTransform::Identity
+						);
+					}
+					else
+					{
+						// Connector at origin - assign to orbital 0 as fallback, or -1 for invalid
+						CompiledConnector.OrbitalIndex = PrimaryOrbitalSet->Num() > 0 ? 0 : -1;
+					}
 				}
 
 				CompiledData.AllModuleConnectors.Add(CompiledConnector);

@@ -438,6 +438,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 					InheritedConn.Polarity = SrcConn->Polarity;
 					InheritedConn.ConstraintOverrides = SrcConn->ConstraintOverrides;
 					InheritedConn.OverrideMode = SrcConn->OverrideMode;
+					InheritedConn.bManualOrbitalOverride = SrcConn->bManualOrbitalOverride;
+					InheritedConn.ManualOrbitalIndex = SrcConn->ManualOrbitalIndex;
 					InheritedConn.OrbitalIndex = -1;
 
 					Data.Connectors.Add(InheritedConn);
@@ -503,6 +505,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 					ExistingConnector.Polarity = ConnectorComp->Polarity;
 					ExistingConnector.ConstraintOverrides = ConnectorComp->ConstraintOverrides;
 					ExistingConnector.OverrideMode = ConnectorComp->OverrideMode;
+					ExistingConnector.bManualOrbitalOverride = ConnectorComp->bManualOrbitalOverride;
+					ExistingConnector.ManualOrbitalIndex = ConnectorComp->ManualOrbitalIndex;
 					PCGEX_VALENCY_VERBOSE(Building, "    Connector component '%s' overrides existing",
 						*ConnectorComp->Identifier.ToString());
 				}
@@ -523,6 +527,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 				ModuleConnector.Polarity = ConnectorComp->Polarity;
 				ModuleConnector.ConstraintOverrides = ConnectorComp->ConstraintOverrides;
 				ModuleConnector.OverrideMode = ConnectorComp->OverrideMode;
+				ModuleConnector.bManualOrbitalOverride = ConnectorComp->bManualOrbitalOverride;
+				ModuleConnector.ManualOrbitalIndex = ConnectorComp->ManualOrbitalIndex;
 				ModuleConnector.OrbitalIndex = -1;
 
 				Data.Connectors.Add(ModuleConnector);
