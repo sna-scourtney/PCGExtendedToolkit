@@ -9,6 +9,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Core/PCGExValencyConnectorSet.h"
+#include "Core/PCGExConnectorTransformStrategy.h"
 
 #include "PCGExValencyCommon.generated.h"
 
@@ -610,6 +611,19 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyModuleDefinition
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Module|Connectors")
 	TArray<FPCGExValencyModuleConnector> Connectors;
+
+	/** Full asset-to-cage relative transform.
+	 *  Applied to connectors during compilation so they become mesh-pivot-relative.
+	 *  Identity when asset origin matches cage origin (no adjustment needed). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Module")
+	FTransform AssetRelativeTransform = FTransform::Identity;
+
+	/** Strategy for transforming connector offsets during compilation.
+	 *  Determines how connectors are adjusted from cage-space to the target coordinate space.
+	 *  Empty = no transform (cage-relative). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Module|Connectors",
+		meta=(BaseStruct="/Script/PCGExElementsValency.PCGExConnectorTransformStrategy", ExcludeBaseStruct))
+	FInstancedStruct ConnectorTransformStrategy;
 
 	/** Check if this module can still be spawned given current spawn count */
 	bool CanSpawn(int32 CurrentSpawnCount) const

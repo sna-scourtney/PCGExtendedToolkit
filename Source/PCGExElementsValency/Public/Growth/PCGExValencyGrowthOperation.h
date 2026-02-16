@@ -77,10 +77,13 @@ protected:
 
 	/**
 	 * Compute world transform for placing a child module attached at a connector.
-	 * Uses plug/receptacle semantics: connectors face each other.
+	 * Starts from parent module rotation and applies a minimal correction to align the
+	 * child's attachment connector opposite to the parent connector direction.
+	 * Scale propagated from parent module.
 	 */
 	FTransform ComputeAttachmentTransform(
 		const FPCGExOpenConnector& ParentConnector,
+		const FTransform& ParentModuleWorld,
 		int32 ChildModuleIndex,
 		int32 ChildConnectorIndex) const;
 

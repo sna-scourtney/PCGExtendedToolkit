@@ -107,8 +107,6 @@ void FPCGExValencyGrowthOperation::Grow(TArray<FPCGExPlacedModule>& OutPlaced)
 
 		if (!bPlaced && Budget->bStopOnFirstFailure)
 		{
-			// Remove all frontier connectors from the same seed branch
-			// (simple approach: just stop the whole growth)
 			break;
 		}
 	}
@@ -155,6 +153,7 @@ void FPCGExValencyGrowthOperation::FindCompatibleModules(
 
 FTransform FPCGExValencyGrowthOperation::ComputeAttachmentTransform(
 	const FPCGExOpenConnector& ParentConnector,
+	const FTransform& ParentModuleWorld,
 	int32 ChildModuleIndex,
 	int32 ChildConnectorIndex) const
 {
@@ -164,18 +163,27 @@ FTransform FPCGExValencyGrowthOperation::ComputeAttachmentTransform(
 	const FPCGExValencyModuleConnector& ChildConnector = ChildConnectors[ChildConnectorIndex];
 	const FTransform ChildConnectorLocal = ChildConnector.GetEffectiveOffset(ConnectorSet);
 
-	// Connector attachment: T_B = T_ParentConnector * Rotate180_X * Inverse(S_B[j])
-	// ParentConnector.WorldTransform already includes parent module transform * parent connector offset
+	// Start from parent module rotation, then apply a minimal correction so the child's
+	// attachment connector faces opposite to the parent connector direction.
+	// This preserves the parent module's base orientation (yaw, twist) while tilting
+	// the child along the connector axis. Uses quaternion math (no Euler angles, no gimbal lock).
+	const FVector ParentConnWorldFwd = ParentConnector.WorldTransform.GetRotation().GetForwardVector();
+	const FVector ChildConnLocalFwd = ChildConnectorLocal.GetRotation().GetForwardVector();
 
-	// 180-degree rotation around local X axis (connectors face each other)
-	const FQuat FlipRotation(FVector::XAxisVector, PI);
-	const FTransform FlipTransform(FlipRotation);
+	const FVector DesiredChildConnWorldFwd = -ParentConnWorldFwd;
+	const FVector CurrentChildConnWorldFwd = ParentModuleWorld.GetRotation().RotateVector(ChildConnLocalFwd);
 
-	// Inverse of child connector's local offset
-	const FTransform ChildConnectorInverse = ChildConnectorLocal.Inverse();
+	const FQuat CorrectionRot = FQuat::FindBetweenNormals(CurrentChildConnWorldFwd, DesiredChildConnWorldFwd);
+	const FQuat ChildModuleRot = CorrectionRot * ParentModuleWorld.GetRotation();
 
-	// Compose: ParentConnectorWorld * Flip * InverseChildConnector
-	return ChildConnectorInverse * FlipTransform * ParentConnector.WorldTransform;
+	// Scale: propagate from parent connector world (includes module scale * connector local scale)
+	const FVector ChildModuleScale = ParentConnector.WorldTransform.GetScale3D();
+
+	// Position: parent connector world pos - child connector offset rotated into the new module frame
+	const FVector ChildModulePos = ParentConnector.WorldTransform.GetTranslation()
+		- ChildModuleRot.RotateVector(ChildConnectorLocal.GetTranslation());
+
+	return FTransform(ChildModuleRot, ChildModulePos, ChildModuleScale);
 }
 
 FBox FPCGExValencyGrowthOperation::ComputeWorldBounds(int32 ModuleIndex, const FTransform& WorldTransform) const
@@ -234,15 +242,18 @@ bool FPCGExValencyGrowthOperation::TryPlaceModule(
 	AddConstraintLists(ParentMC);
 	AddConstraintLists(ChildMC);
 
+	const FTransform& ParentModuleWorld = OutPlaced[Connector.PlacedModuleIndex].WorldTransform;
+
 	// Fast path: no constraints on either side -> single transform (zero overhead)
 	if (ConstraintLists.IsEmpty())
 	{
-		const FTransform WorldTransform = ComputeAttachmentTransform(Connector, ModuleIndex, ChildConnectorIndex);
+		const FTransform WorldTransform = ComputeAttachmentTransform(Connector, ParentModuleWorld, ModuleIndex, ChildConnectorIndex);
+
 		return TryPlaceModuleAt(Connector, ModuleIndex, ChildConnectorIndex, WorldTransform, OutPlaced, OutFrontier);
 	}
 
 	// Build context
-	const FTransform BaseTransform = ComputeAttachmentTransform(Connector, ModuleIndex, ChildConnectorIndex);
+	const FTransform BaseTransform = ComputeAttachmentTransform(Connector, ParentModuleWorld, ModuleIndex, ChildConnectorIndex);
 
 	FPCGExConstraintContext ConstraintContext;
 	ConstraintContext.ParentConnectorWorld = Connector.WorldTransform;
@@ -287,10 +298,7 @@ bool FPCGExValencyGrowthOperation::TryPlaceModuleAt(
 	const FBox WorldBounds = ComputeWorldBounds(ModuleIndex, WorldTransform);
 
 	// Check overlap (skip for degenerate bounds)
-	if (WorldBounds.IsValid && BoundsTracker->Overlaps(WorldBounds))
-	{
-		return false;
-	}
+	if (WorldBounds.IsValid && BoundsTracker->Overlaps(WorldBounds)) { return false; }
 
 	// Place the module
 	FPCGExPlacedModule NewModule;

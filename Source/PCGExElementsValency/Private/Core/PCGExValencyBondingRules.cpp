@@ -3,6 +3,7 @@
 
 #include "Core/PCGExValencyBondingRules.h"
 
+#include "Core/PCGExConnectorTransformStrategy.h"
 #include "Collections/PCGExMeshCollection.h"
 #include "Collections/PCGExActorCollection.h"
 #include "Engine/Blueprint.h"
@@ -130,6 +131,13 @@ bool UPCGExValencyBondingRules::Compile()
 			{
 				FPCGExValencyModuleConnector CompiledConnector = Connector;
 
+				// Apply connector transform strategy (if set)
+				if (const FPCGExConnectorTransformStrategy* Strategy =
+					Module.ConnectorTransformStrategy.GetPtr<FPCGExConnectorTransformStrategy>())
+				{
+					Strategy->TransformConnector(CompiledConnector.LocalOffset, Module.AssetRelativeTransform);
+				}
+
 				if (Connector.bManualOrbitalOverride)
 				{
 					// Manual override - use user-specified orbital index
@@ -137,9 +145,8 @@ bool UPCGExValencyBondingRules::Compile()
 				}
 				else
 				{
-					// Compute orbital index from connector direction
-					// The connector's LocalOffset translation defines its position relative to module origin
-					const FVector ConnectorDirection = Connector.LocalOffset.GetTranslation().GetSafeNormal();
+					// Compute orbital index from connector direction (now mesh-relative after adjustment)
+					const FVector ConnectorDirection = CompiledConnector.LocalOffset.GetTranslation().GetSafeNormal();
 
 					if (!ConnectorDirection.IsNearlyZero())
 					{

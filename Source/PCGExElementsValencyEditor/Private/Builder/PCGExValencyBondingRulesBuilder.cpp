@@ -292,6 +292,7 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 		Data.PlacementPolicy = Cage->PlacementPolicy;
 		Data.ModuleName = Cage->ModuleName;
 		Data.bPreserveLocalTransforms = Cage->bPreserveLocalTransforms;
+		Data.ConnectorTransformStrategy = Cage->ConnectorTransformStrategy;
 
 		// Collect properties from cage and its mirror sources (palettes act as data prefabs)
 		Data.Properties = GetEffectiveProperties(Cage);
@@ -619,6 +620,9 @@ void UPCGExValencyBondingRulesBuilder::PopulateAssembler(
 	// Only the first cage that creates a module sets metadata; subsequent dedup hits skip.
 	TSet<int32> ModulesWithMetadata;
 
+	// Track per-module asset-to-cage relative transforms (first entry per module wins)
+	TMap<int32, FTransform> ModuleAssetTransforms;
+
 	for (int32 CageIdx = 0; CageIdx < CageData.Num(); ++CageIdx)
 	{
 		const FPCGExValencyCageData& Data = CageData[CageIdx];
@@ -651,6 +655,20 @@ void UPCGExValencyBondingRulesBuilder::PopulateAssembler(
 			const int32 ModuleIndex = OutAssembler.AddModule(Desc);
 			CageDataToModuleIndices[CageIdx].AddUnique(ModuleIndex);
 
+			// Capture asset-to-cage relative transform (first entry per module wins)
+			if (!ModuleAssetTransforms.Contains(ModuleIndex))
+			{
+				FTransform AssetRelativeTransform = FTransform::Identity;
+				if (AActor* Actor = Entry.SourceActor.Get())
+				{
+					if (APCGExValencyCage* Cage = Data.Cage.Get())
+					{
+						AssetRelativeTransform = Actor->GetActorTransform().GetRelativeTransform(Cage->GetActorTransform());
+					}
+				}
+				ModuleAssetTransforms.Add(ModuleIndex, AssetRelativeTransform);
+			}
+
 			// Accumulate local transform if cage or entry preserves them
 			// This happens for both new AND existing modules (transform accumulation)
 			if (Data.bPreserveLocalTransforms || Entry.bPreserveLocalTransform)
@@ -669,6 +687,16 @@ void UPCGExValencyBondingRulesBuilder::PopulateAssembler(
 				continue;
 			}
 			ModulesWithMetadata.Add(ModuleIndex);
+
+			if (const FTransform* AssetXform = ModuleAssetTransforms.Find(ModuleIndex))
+			{
+				OutAssembler.SetAssetRelativeTransform(ModuleIndex, *AssetXform);
+			}
+
+			if (Data.ConnectorTransformStrategy.IsValid())
+			{
+				OutAssembler.SetConnectorTransformStrategy(ModuleIndex, Data.ConnectorTransformStrategy);
+			}
 
 			for (const FInstancedStruct& Prop : Data.Properties)
 			{

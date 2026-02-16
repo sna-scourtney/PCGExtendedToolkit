@@ -39,8 +39,9 @@ public:
 	virtual bool CanDynamicallyTrackKeys() const override { return true; }
 #endif
 
-protected:
 	virtual FName GetMainOutputPin() const override { return PCGExClusters::Labels::OutputVerticesLabel; }
+	
+protected:
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings
@@ -190,6 +191,7 @@ namespace PCGExValencyBondingGenerative
 		virtual bool Process(const TSharedPtr<PCGExMT::FTaskManager>& InTaskManager) override;
 		virtual void ProcessPoints(const PCGExMT::FScope& Scope) override;
 		virtual void OnPointsProcessingComplete() override;
+		virtual void CompleteWork() override;
 		virtual void Output() override;
 	};
 }
