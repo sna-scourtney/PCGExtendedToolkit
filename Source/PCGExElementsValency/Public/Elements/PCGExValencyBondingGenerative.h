@@ -39,8 +39,9 @@ public:
 	virtual bool CanDynamicallyTrackKeys() const override { return true; }
 #endif
 
-protected:
 	virtual FName GetMainOutputPin() const override { return PCGExClusters::Labels::OutputVerticesLabel; }
+	
+protected:
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings

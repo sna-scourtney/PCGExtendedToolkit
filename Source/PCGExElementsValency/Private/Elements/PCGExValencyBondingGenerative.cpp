@@ -233,7 +233,6 @@ bool FPCGExValencyBondingGenerativeElement::AdvanceWork(FPCGExContext* InContext
 	PCGEX_POINTS_BATCH_PROCESSING(PCGExCommon::States::State_Done)
 
 	// Output all processor-created IOs
-	Context->MainPoints->StageOutputs();
 	Context->MainBatch->Output();
 
 	// Output valency map
@@ -400,8 +399,51 @@ namespace PCGExValencyBondingGenerative
 
 		if (PlacedModules.IsEmpty()) { return; }
 
+		// Warn if seeds consumed the entire budget (common misconfiguration)
+		if (!Budget.CanPlaceMore())
+		{
+			PCGE_LOG_C(Warning, GraphAndLog, Context, FText::Format(
+				FTEXT("Growth budget exhausted by {0} seed(s) (MaxTotalModules={1}). No room for growth. Increase MaxTotalModules or reduce seed count."),
+				FText::AsNumber(PlacedModules.Num()), FText::AsNumber(Budget.MaxTotalModules)));
+		}
+
 		// Run the growth (sequential)
 		GrowthOp->Grow(PlacedModules);
+
+		// Add sentinel vertices for isolated seeds to ensure valid clusters (>= 2 vtx, 1 edge).
+		// Sentinels are identified by having ParentIndex >= 0 but ParentConnectorIndex < 0.
+		// They receive INVALID_ENTRY (0) as ValencyEntry so downstream nodes skip them.
+		{
+			TSet<int32> ParentsWithChildren;
+			for (int32 i = 0; i < PlacedModules.Num(); ++i)
+			{
+				if (PlacedModules[i].ParentIndex >= 0)
+				{
+					ParentsWithChildren.Add(PlacedModules[i].ParentIndex);
+				}
+			}
+
+			const int32 OriginalCount = PlacedModules.Num();
+			for (int32 i = 0; i < OriginalCount; ++i)
+			{
+				// Isolated seed: is a seed (no parent) and has no children
+				if (PlacedModules[i].ParentIndex >= 0 || ParentsWithChildren.Contains(i)) { continue; }
+
+				FPCGExPlacedModule Sentinel;
+				Sentinel.ModuleIndex = PlacedModules[i].ModuleIndex; // Reuse seed's module for safe array access
+				Sentinel.WorldTransform = PlacedModules[i].WorldTransform;
+				Sentinel.WorldTransform.AddToTranslation(FVector(0, 0, 1.0)); // 1cm offset for distinct positions
+				Sentinel.WorldBounds = FBox(ForceInit);
+				Sentinel.ParentIndex = i;
+				Sentinel.ParentConnectorIndex = -1; // Sentinel marker: no real connector
+				Sentinel.ChildConnectorIndex = -1;
+				Sentinel.Depth = PlacedModules[i].Depth + 1;
+				Sentinel.SeedIndex = PlacedModules[i].SeedIndex;
+				Sentinel.CumulativeWeight = PlacedModules[i].CumulativeWeight;
+
+				PlacedModules.Add(Sentinel);
+			}
+		}
 
 		// Create output point data
 		if (!PointDataFacade->Source->InitializeOutput(PCGExData::EIOInit::New))
@@ -410,7 +452,7 @@ namespace PCGExValencyBondingGenerative
 			return;
 		}
 		
-		TSharedPtr<PCGExData::FPointIO> OutputIO = PointDataFacade->Source;
+		TSharedPtr<PCGExData::FPointIO> OutputIO = PointDataFacade->Source;		
 		UPCGBasePointData* OutPointData = OutputIO->GetOut();
 
 		const int32 TotalPlaced = PlacedModules.Num();
@@ -466,6 +508,7 @@ namespace PCGExValencyBondingGenerative
 			{
 				const FPCGExPlacedModule& Placed = PlacedModules[i];
 				if (Placed.ParentIndex < 0) { continue; }
+				if (Placed.ParentConnectorIndex < 0) { continue; } // Skip sentinels (no real connectors)
 
 				// Child connector's orbital -> bit on this vertex
 				const FIntPoint& ChildHeader = CompiledRules->ModuleConnectorHeaders[Placed.ModuleIndex];
@@ -499,6 +542,9 @@ namespace PCGExValencyBondingGenerative
 			const FPCGExPlacedModule& Placed = PlacedModules[PlacedIdx];
 			const int32 ModuleIdx = Placed.ModuleIndex;
 
+			// Sentinel detection: has parent but no real connectors (structural padding only)
+			const bool bIsSentinel = (Placed.ParentIndex >= 0 && Placed.ParentConnectorIndex < 0);
+
 			// Transform
 			FTransform& OutTransform = OutTransforms[PlacedIdx];
 			OutTransform = Placed.WorldTransform;
@@ -506,19 +552,27 @@ namespace PCGExValencyBondingGenerative
 			// Seed for deterministic downstream use
 			OutSeeds[PlacedIdx] = HashCombine(Settings->Seed, PlacedIdx);
 
-			// Apply local transform if enabled
-			if (Settings->bApplyLocalTransforms && CompiledRules->ModuleHasLocalTransform[ModuleIdx])
+			// Apply local transform if enabled (skip sentinels - they use raw offset transform)
+			if (!bIsSentinel && Settings->bApplyLocalTransforms && CompiledRules->ModuleHasLocalTransform[ModuleIdx])
 			{
 				const FTransform LocalTransform = CompiledRules->GetModuleLocalTransform(ModuleIdx, OutSeeds[PlacedIdx]);
 				OutTransform = LocalTransform * OutTransform;
 			}
 
 			// Set default bounds
-			const FBox& ModuleBounds = Context->ModuleLocalBounds[ModuleIdx];
-			if (ModuleBounds.IsValid)
+			if (!bIsSentinel)
 			{
-				OutBoundsMin[PlacedIdx] = ModuleBounds.Min;
-				OutBoundsMax[PlacedIdx] = ModuleBounds.Max;
+				const FBox& ModuleBounds = Context->ModuleLocalBounds[ModuleIdx];
+				if (ModuleBounds.IsValid)
+				{
+					OutBoundsMin[PlacedIdx] = ModuleBounds.Min;
+					OutBoundsMax[PlacedIdx] = ModuleBounds.Max;
+				}
+				else
+				{
+					OutBoundsMin[PlacedIdx] = -FVector::OneVector;
+					OutBoundsMax[PlacedIdx] = FVector::OneVector;
+				}
 			}
 			else
 			{
@@ -527,14 +581,15 @@ namespace PCGExValencyBondingGenerative
 			}
 
 			// Write ValencyEntry hash for Valency Map pipeline
-			if (ValencyEntryWriter && Context->ValencyPacker)
+			// Sentinels get INVALID_ENTRY (0) so downstream nodes skip them
+			if (ValencyEntryWriter && Context->ValencyPacker && !bIsSentinel)
 			{
 				const uint64 ValencyHash = Context->ValencyPacker->GetEntryIdx(
 					Context->BondingRules, static_cast<uint16>(ModuleIdx));
 				ValencyEntryWriter->SetValue(PlacedIdx, static_cast<int64>(ValencyHash));
 			}
 
-			// Write vertex orbital mask
+			// Write vertex orbital mask (sentinels have no orbital contribution, stays 0)
 			if (OrbitalMaskWriter && Settings->bOutputOrbitalData)
 			{
 				OrbitalMaskWriter->SetValue(PlacedIdx, VertexOrbitalMasks[PlacedIdx]);
@@ -543,7 +598,7 @@ namespace PCGExValencyBondingGenerative
 			// Write module name
 			if (ModuleNameWriter)
 			{
-				ModuleNameWriter->SetValue(PlacedIdx, CompiledRules->ModuleNames[ModuleIdx]);
+				ModuleNameWriter->SetValue(PlacedIdx, bIsSentinel ? NAME_None : CompiledRules->ModuleNames[ModuleIdx]);
 			}
 
 			// Write depth
@@ -641,6 +696,9 @@ namespace PCGExValencyBondingGenerative
 					const int32 ParentIdx = Child.ParentIndex;
 					if (ParentIdx < 0) { continue; }
 
+					// Skip sentinel edges (no real connector data to write)
+					if (Child.ParentConnectorIndex < 0 || Child.ChildConnectorIndex < 0) { continue; }
+
 					const FPCGExPlacedModule& Parent = CapturedPlacedModules[ParentIdx];
 
 					if (OrbitalWriter)
@@ -697,6 +755,7 @@ namespace PCGExValencyBondingGenerative
 	{
 		if (GraphBuilder && GraphBuilder->bCompiledSuccessfully)
 		{
+			PointDataFacade->Source->StageOutput(Context);
 			GraphBuilder->StageEdgesOutputs();
 		}
 	}
