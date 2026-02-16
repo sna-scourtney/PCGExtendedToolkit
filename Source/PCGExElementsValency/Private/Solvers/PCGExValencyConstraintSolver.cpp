@@ -86,7 +86,7 @@ void FPCGExValencyConstraintSolver::InitializeAllCandidates()
 		}
 
 		Data.Candidates.Empty();
-		TArray<int32> FillerCandidates;
+		FillerCandidatesPerState[StateIndex].Empty();
 
 		// For each module, check if it fits this node
 		for (int32 ModuleIndex = 0; ModuleIndex < CompiledBondingRules->ModuleCount; ++ModuleIndex)
@@ -97,7 +97,7 @@ void FPCGExValencyConstraintSolver::InitializeAllCandidates()
 			{
 				if (CompiledBondingRules->IsModuleFiller(ModuleIndex))
 				{
-					FillerCandidates.Add(ModuleIndex);
+					FillerCandidatesPerState[StateIndex].Add(ModuleIndex);
 				}
 				else
 				{
@@ -106,16 +106,9 @@ void FPCGExValencyConstraintSolver::InitializeAllCandidates()
 			}
 		}
 
-		// Fall back to filler modules if no normal candidates found
-		if (Data.Candidates.Num() == 0 && FillerCandidates.Num() > 0)
-		{
-			Data.Candidates = MoveTemp(FillerCandidates);
-			PCGEX_VALENCY_VERBOSE(Solver, "  State[%d]: using %d filler candidates (no normal candidates)", StateIndex, Data.Candidates.Num());
-		}
-
 		TotalCandidates += Data.Candidates.Num();
 
-		if (Data.Candidates.Num() == 0 && HasOrbitals(StateIndex))
+		if (Data.Candidates.Num() == 0 && FillerCandidatesPerState[StateIndex].Num() == 0 && HasOrbitals(StateIndex))
 		{
 			const int64 NodeMask = GetOrbitalMask(StateIndex);
 			PCGEX_VALENCY_WARNING(Solver, "  State[%d]: UNSOLVABLE - NodeMask=0x%llX, no modules fit!", StateIndex, NodeMask);
@@ -124,7 +117,7 @@ void FPCGExValencyConstraintSolver::InitializeAllCandidates()
 		}
 		else
 		{
-			PCGEX_VALENCY_VERBOSE(Solver, "  State[%d]: %d candidates", StateIndex, Data.Candidates.Num());
+			PCGEX_VALENCY_VERBOSE(Solver, "  State[%d]: %d candidates, %d fillers", StateIndex, Data.Candidates.Num(), FillerCandidatesPerState[StateIndex].Num());
 		}
 	}
 
@@ -183,7 +176,8 @@ void FPCGExValencyConstraintSolver::RebuildEntropyQueue()
 
 	for (int32 i = 0; i < ValencyStates->Num(); ++i)
 	{
-		if (!(*ValencyStates)[i].IsResolved())
+		// Only queue states with normal candidates - filler-only states are handled in the post-solve sweep
+		if (!(*ValencyStates)[i].IsResolved() && StateData[i].Candidates.Num() > 0)
 		{
 			EntropyQueue.Add(i);
 		}
@@ -257,7 +251,7 @@ PCGExValency::FSolveResult FPCGExValencyConstraintSolver::Solve()
 
 	PCGEX_VALENCY_INFO(Solver, "Initial boundaries: %d, Queue size: %d", Result.BoundaryCount, EntropyQueue.Num());
 
-	// Main solve loop
+	// Main solve loop - normal candidates only
 	int32 Iteration = 0;
 	while (EntropyQueue.Num() > 0)
 	{
@@ -265,7 +259,6 @@ PCGExValency::FSolveResult FPCGExValencyConstraintSolver::Solve()
 		if (!SlotBudget.AreConstraintsSatisfiable(DistributionTracker, CompiledBondingRules))
 		{
 			PCGEX_VALENCY_WARNING(Solver, "Iteration %d: Constraints became unsatisfiable!", Iteration);
-			// Continue anyway - mark remaining as unsolvable at the end
 		}
 
 		const int32 StateIndex = PopLowestEntropy();
@@ -279,11 +272,15 @@ PCGExValency::FSolveResult FPCGExValencyConstraintSolver::Solve()
 
 		if (!CollapseState(StateIndex))
 		{
-			PCGEX_VALENCY_WARNING(Solver, "  State[%d] CONTRADICTION - marked unsolvable", StateIndex);
+			PCGEX_VALENCY_VERBOSE(Solver, "  State[%d] CONTRADICTION during normal pass", StateIndex);
 		}
 
 		Iteration++;
 	}
+
+	// Filler sweep - assign filler modules to remaining unresolved states
+	// Runs AFTER the main loop to avoid fillers interfering with normal constraint propagation
+	SweepFillers();
 
 	// Count results
 	for (const PCGExValency::FValencyState& State : *ValencyStates)
@@ -330,8 +327,16 @@ bool FPCGExValencyConstraintSolver::CollapseState(int32 StateIndex)
 	// Filter candidates based on current neighbor states
 	if (!FilterCandidates(StateIndex))
 	{
-		PCGEX_VALENCY_WARNING(Solver, "  CollapseState[%d]: NO CANDIDATES after filter!", StateIndex);
-		State.ResolvedModule = PCGExValency::SlotState::UNSOLVABLE;
+		// Normal candidates exhausted - don't mark UNSOLVABLE yet, filler sweep will handle it
+		if (FillerCandidatesPerState[StateIndex].Num() > 0)
+		{
+			PCGEX_VALENCY_VERBOSE(Solver, "  CollapseState[%d]: Normal candidates exhausted, %d fillers available for post-solve sweep", StateIndex, FillerCandidatesPerState[StateIndex].Num());
+		}
+		else
+		{
+			PCGEX_VALENCY_WARNING(Solver, "  CollapseState[%d]: NO CANDIDATES after filter, no fillers available", StateIndex);
+			State.ResolvedModule = PCGExValency::SlotState::UNSOLVABLE;
+		}
 		return false;
 	}
 
