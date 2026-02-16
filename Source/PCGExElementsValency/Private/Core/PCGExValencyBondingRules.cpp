@@ -130,6 +130,15 @@ bool UPCGExValencyBondingRules::Compile()
 			{
 				FPCGExValencyModuleConnector CompiledConnector = Connector;
 
+				// Adjust connector offset from cage-space to mesh-pivot-space
+				const FTransform& AssetXform = Module.AssetRelativeTransform;
+				if (!AssetXform.Equals(FTransform::Identity, KINDA_SMALL_NUMBER))
+				{
+					const FVector OriginalScale = CompiledConnector.LocalOffset.GetScale3D();
+					CompiledConnector.LocalOffset = CompiledConnector.LocalOffset.GetRelativeTransform(AssetXform);
+					CompiledConnector.LocalOffset.SetScale3D(OriginalScale);
+				}
+
 				if (Connector.bManualOrbitalOverride)
 				{
 					// Manual override - use user-specified orbital index
@@ -137,9 +146,8 @@ bool UPCGExValencyBondingRules::Compile()
 				}
 				else
 				{
-					// Compute orbital index from connector direction
-					// The connector's LocalOffset translation defines its position relative to module origin
-					const FVector ConnectorDirection = Connector.LocalOffset.GetTranslation().GetSafeNormal();
+					// Compute orbital index from connector direction (now mesh-relative after adjustment)
+					const FVector ConnectorDirection = CompiledConnector.LocalOffset.GetTranslation().GetSafeNormal();
 
 					if (!ConnectorDirection.IsNearlyZero())
 					{

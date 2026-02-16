@@ -88,6 +88,7 @@ struct PCGEXELEMENTSVALENCY_API FPCGExBondingRulesAssembler
 	void AddProperty(int32 ModuleIndex, const FInstancedStruct& Property);
 	void AddTag(int32 ModuleIndex, FName Tag);
 	void AddConnector(int32 ModuleIndex, const FPCGExValencyModuleConnector& Connector);
+	void SetAssetRelativeTransform(int32 ModuleIndex, const FTransform& Transform);
 
 	// === Neighbor Relationships ===
 
@@ -144,6 +145,7 @@ private:
 		TArray<FInstancedStruct> Properties;
 		TArray<FName> Tags;
 		TArray<FPCGExValencyModuleConnector> Connectors;
+		FTransform AssetRelativeTransform = FTransform::Identity;
 
 		/** Neighbor data per orbital NAME -> neighbor module indices */
 		TMap<FName, TArray<int32>> OrbitalNeighbors;

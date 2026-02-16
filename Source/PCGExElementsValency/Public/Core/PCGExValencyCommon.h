@@ -611,6 +611,12 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyModuleDefinition
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Module|Connectors")
 	TArray<FPCGExValencyModuleConnector> Connectors;
 
+	/** Full asset-to-cage relative transform.
+	 *  Applied to connectors during compilation so they become mesh-pivot-relative.
+	 *  Identity when asset origin matches cage origin (no adjustment needed). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Module")
+	FTransform AssetRelativeTransform = FTransform::Identity;
+
 	/** Check if this module can still be spawned given current spawn count */
 	bool CanSpawn(int32 CurrentSpawnCount) const
 	{

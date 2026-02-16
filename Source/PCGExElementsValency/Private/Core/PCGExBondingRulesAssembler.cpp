@@ -76,6 +76,14 @@ void FPCGExBondingRulesAssembler::AddConnector(int32 ModuleIndex, const FPCGExVa
 	}
 }
 
+void FPCGExBondingRulesAssembler::SetAssetRelativeTransform(int32 ModuleIndex, const FTransform& Transform)
+{
+	if (Modules.IsValidIndex(ModuleIndex))
+	{
+		Modules[ModuleIndex].AssetRelativeTransform = Transform;
+	}
+}
+
 void FPCGExBondingRulesAssembler::AddNeighbors(int32 ModuleIndex, const FName& OrbitalName, const TArray<int32>& NeighborModuleIndices)
 {
 	if (!Modules.IsValidIndex(ModuleIndex))
@@ -274,6 +282,7 @@ void FPCGExBondingRulesAssembler::ApplyModuleToDefinition(
 	Dst.Properties = Src.Properties;
 	Dst.Tags = Src.Tags;
 	Dst.Connectors = Src.Connectors;
+	Dst.AssetRelativeTransform = Src.AssetRelativeTransform;
 
 #if WITH_EDITOR
 	// Generate variant name for editor debug display
