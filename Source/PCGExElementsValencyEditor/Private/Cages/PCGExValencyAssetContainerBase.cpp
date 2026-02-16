@@ -9,6 +9,7 @@
 
 APCGExValencyAssetContainerBase::APCGExValencyAssetContainerBase()
 {
+	ConnectorTransformStrategy.InitializeAs<FPCGExConnectorTransform_AssetRelative>();
 }
 
 #pragma region Asset Accessors

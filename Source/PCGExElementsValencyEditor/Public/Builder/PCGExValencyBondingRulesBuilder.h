@@ -76,6 +76,9 @@ struct FPCGExValencyCageData
 	/** Whether this cage preserves local transforms */
 	bool bPreserveLocalTransforms = false;
 
+	/** Connector transform strategy from the source cage */
+	FInstancedStruct ConnectorTransformStrategy;
+
 	/** Properties from cage property components */
 	TArray<FInstancedStruct> Properties;
 

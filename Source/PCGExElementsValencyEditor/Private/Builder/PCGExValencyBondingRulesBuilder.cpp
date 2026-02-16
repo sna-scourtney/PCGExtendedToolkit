@@ -292,6 +292,7 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 		Data.PlacementPolicy = Cage->PlacementPolicy;
 		Data.ModuleName = Cage->ModuleName;
 		Data.bPreserveLocalTransforms = Cage->bPreserveLocalTransforms;
+		Data.ConnectorTransformStrategy = Cage->ConnectorTransformStrategy;
 
 		// Collect properties from cage and its mirror sources (palettes act as data prefabs)
 		Data.Properties = GetEffectiveProperties(Cage);
@@ -690,6 +691,11 @@ void UPCGExValencyBondingRulesBuilder::PopulateAssembler(
 			if (const FTransform* AssetXform = ModuleAssetTransforms.Find(ModuleIndex))
 			{
 				OutAssembler.SetAssetRelativeTransform(ModuleIndex, *AssetXform);
+			}
+
+			if (Data.ConnectorTransformStrategy.IsValid())
+			{
+				OutAssembler.SetConnectorTransformStrategy(ModuleIndex, Data.ConnectorTransformStrategy);
 			}
 
 			for (const FInstancedStruct& Prop : Data.Properties)

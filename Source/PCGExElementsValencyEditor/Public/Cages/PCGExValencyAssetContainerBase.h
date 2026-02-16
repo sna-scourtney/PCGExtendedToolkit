@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "PCGExValencyEditorActorBase.h"
 #include "Core/PCGExValencyCommon.h"
+#include "Core/PCGExConnectorTransformStrategy.h"
 
 #include "PCGExValencyAssetContainerBase.generated.h"
 
@@ -170,6 +171,16 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Module")
 	FPCGExValencyModuleSettings ModuleSettings;
+
+	/**
+	 * Strategy for transforming connector offsets during compilation.
+	 * Determines how connectors are adjusted from cage-space to the target coordinate space.
+	 * Default: Asset Relative (adjusts connectors to mesh-pivot-space).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Module",
+		meta=(BaseStruct="/Script/PCGExElementsValency.PCGExConnectorTransformStrategy",
+			ExcludeBaseStruct, PCGEX_ValencyRebuild))
+	FInstancedStruct ConnectorTransformStrategy;
 
 protected:
 	/**

@@ -3,6 +3,7 @@
 
 #include "Core/PCGExValencyBondingRules.h"
 
+#include "Core/PCGExConnectorTransformStrategy.h"
 #include "Collections/PCGExMeshCollection.h"
 #include "Collections/PCGExActorCollection.h"
 #include "Engine/Blueprint.h"
@@ -130,13 +131,11 @@ bool UPCGExValencyBondingRules::Compile()
 			{
 				FPCGExValencyModuleConnector CompiledConnector = Connector;
 
-				// Adjust connector offset from cage-space to mesh-pivot-space
-				const FTransform& AssetXform = Module.AssetRelativeTransform;
-				if (!AssetXform.Equals(FTransform::Identity, KINDA_SMALL_NUMBER))
+				// Apply connector transform strategy (if set)
+				if (const FPCGExConnectorTransformStrategy* Strategy =
+					Module.ConnectorTransformStrategy.GetPtr<FPCGExConnectorTransformStrategy>())
 				{
-					const FVector OriginalScale = CompiledConnector.LocalOffset.GetScale3D();
-					CompiledConnector.LocalOffset = CompiledConnector.LocalOffset.GetRelativeTransform(AssetXform);
-					CompiledConnector.LocalOffset.SetScale3D(OriginalScale);
+					Strategy->TransformConnector(CompiledConnector.LocalOffset, Module.AssetRelativeTransform);
 				}
 
 				if (Connector.bManualOrbitalOverride)
