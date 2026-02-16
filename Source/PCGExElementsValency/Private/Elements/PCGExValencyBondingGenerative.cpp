@@ -1,7 +1,7 @@
 // Copyright 2026 Timothé Lapetite and contributors
 // Released under the MIT license https://opensource.org/license/MIT/
 
-#include "Elements/PCGExValencyGenerative.h"
+#include "Elements/PCGExValencyBondingGenerative.h"
 
 #include "PCGParamData.h"
 #include "Data/PCGExData.h"
@@ -15,15 +15,15 @@
 #include "Graphs/PCGExSubGraph.h"
 #include "Growth/PCGExValencyGrowthBFS.h"
 
-#define LOCTEXT_NAMESPACE "PCGExValencyGenerative"
-#define PCGEX_NAMESPACE ValencyGenerative
+#define LOCTEXT_NAMESPACE "PCGExValencyBondingGenerative"
+#define PCGEX_NAMESPACE ValencyBondingGenerative
 
-PCGEX_INITIALIZE_ELEMENT(ValencyGenerative)
-PCGEX_ELEMENT_BATCH_POINT_IMPL(ValencyGenerative)
+PCGEX_INITIALIZE_ELEMENT(ValencyBondingGenerative)
+PCGEX_ELEMENT_BATCH_POINT_IMPL(ValencyBondingGenerative)
 
-#pragma region UPCGExValencyGenerativeSettings
+#pragma region UPCGExValencyBondingGenerativeSettings
 
-void UPCGExValencyGenerativeSettings::PostInitProperties()
+void UPCGExValencyBondingGenerativeSettings::PostInitProperties()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject) && IsInGameThread())
 	{
@@ -32,7 +32,7 @@ void UPCGExValencyGenerativeSettings::PostInitProperties()
 	Super::PostInitProperties();
 }
 
-TArray<FPCGPinProperties> UPCGExValencyGenerativeSettings::OutputPinProperties() const
+TArray<FPCGPinProperties> UPCGExValencyBondingGenerativeSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties = Super::OutputPinProperties();
 	PCGEX_PIN_POINTS(PCGExClusters::Labels::OutputEdgesLabel, "Edges of the generated growth trees", Required)
@@ -42,13 +42,13 @@ TArray<FPCGPinProperties> UPCGExValencyGenerativeSettings::OutputPinProperties()
 
 #pragma endregion
 
-#pragma region FPCGExValencyGenerativeContext
+#pragma region FPCGExValencyBondingGenerativeContext
 
-void FPCGExValencyGenerativeContext::RegisterAssetDependencies()
+void FPCGExValencyBondingGenerativeContext::RegisterAssetDependencies()
 {
 	FPCGExPointsProcessorContext::RegisterAssetDependencies();
 
-	const UPCGExValencyGenerativeSettings* Settings = GetInputSettings<UPCGExValencyGenerativeSettings>();
+	const UPCGExValencyBondingGenerativeSettings* Settings = GetInputSettings<UPCGExValencyBondingGenerativeSettings>();
 	if (!Settings) { return; }
 
 	if (!Settings->BondingRules.IsNull())
@@ -59,13 +59,13 @@ void FPCGExValencyGenerativeContext::RegisterAssetDependencies()
 
 #pragma endregion
 
-#pragma region FPCGExValencyGenerativeElement
+#pragma region FPCGExValencyBondingGenerativeElement
 
-bool FPCGExValencyGenerativeElement::Boot(FPCGExContext* InContext) const
+bool FPCGExValencyBondingGenerativeElement::Boot(FPCGExContext* InContext) const
 {
 	if (!FPCGExPointsProcessorElement::Boot(InContext)) { return false; }
 
-	PCGEX_CONTEXT_AND_SETTINGS(ValencyGenerative)
+	PCGEX_CONTEXT_AND_SETTINGS(ValencyBondingGenerative)
 
 	// Validate required settings
 	if (Settings->BondingRules.IsNull())
@@ -82,20 +82,20 @@ bool FPCGExValencyGenerativeElement::Boot(FPCGExContext* InContext) const
 	return true;
 }
 
-void FPCGExValencyGenerativeElement::PostLoadAssetsDependencies(FPCGExContext* InContext) const
+void FPCGExValencyBondingGenerativeElement::PostLoadAssetsDependencies(FPCGExContext* InContext) const
 {
 	FPCGExPointsProcessorElement::PostLoadAssetsDependencies(InContext);
 
-	PCGEX_CONTEXT_AND_SETTINGS(ValencyGenerative)
+	PCGEX_CONTEXT_AND_SETTINGS(ValencyBondingGenerative)
 
 	Context->BondingRules = Settings->BondingRules.Get();
 }
 
-bool FPCGExValencyGenerativeElement::PostBoot(FPCGExContext* InContext) const
+bool FPCGExValencyBondingGenerativeElement::PostBoot(FPCGExContext* InContext) const
 {
 	if (!FPCGExPointsProcessorElement::PostBoot(InContext)) { return false; }
 
-	PCGEX_CONTEXT_AND_SETTINGS(ValencyGenerative)
+	PCGEX_CONTEXT_AND_SETTINGS(ValencyBondingGenerative)
 
 	if (!Context->BondingRules)
 	{
@@ -213,9 +213,9 @@ bool FPCGExValencyGenerativeElement::PostBoot(FPCGExContext* InContext) const
 	return true;
 }
 
-bool FPCGExValencyGenerativeElement::AdvanceWork(FPCGExContext* InContext, const UPCGExSettings* InSettings) const
+bool FPCGExValencyBondingGenerativeElement::AdvanceWork(FPCGExContext* InContext, const UPCGExSettings* InSettings) const
 {
-	PCGEX_CONTEXT_AND_SETTINGS(ValencyGenerative)
+	PCGEX_CONTEXT_AND_SETTINGS(ValencyBondingGenerative)
 	PCGEX_EXECUTION_CHECK
 
 	PCGEX_ON_INITIAL_EXECUTION
@@ -251,13 +251,13 @@ bool FPCGExValencyGenerativeElement::AdvanceWork(FPCGExContext* InContext, const
 
 #pragma endregion
 
-#pragma region PCGExValencyGenerative::FProcessor
+#pragma region PCGExValencyBondingGenerative::FProcessor
 
-namespace PCGExValencyGenerative
+namespace PCGExValencyBondingGenerative
 {
 	bool FProcessor::Process(const TSharedPtr<PCGExMT::FTaskManager>& InTaskManager)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(PCGExValencyGenerative::Process);
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCGExValencyBondingGenerative::Process);
 
 		if (!IProcessor::Process(InTaskManager)) { return false; }
 
@@ -285,7 +285,7 @@ namespace PCGExValencyGenerative
 
 	void FProcessor::ProcessPoints(const PCGExMT::FScope& Scope)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(PCGExValencyGenerative::ProcessPoints);
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCGExValencyBondingGenerative::ProcessPoints);
 
 		PointDataFacade->Fetch(Scope);
 

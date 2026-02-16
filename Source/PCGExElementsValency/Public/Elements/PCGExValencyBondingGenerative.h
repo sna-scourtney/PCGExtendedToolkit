@@ -13,7 +13,7 @@
 #include "Growth/PCGExValencyGenerativeCommon.h"
 #include "Growth/PCGExValencyGrowthOperation.h"
 
-#include "PCGExValencyGenerative.generated.h"
+#include "PCGExValencyBondingGenerative.generated.h"
 
 class UPCGExValencyGrowthFactory;
 
@@ -23,7 +23,7 @@ class UPCGExValencyGrowthFactory;
  * Outputs cluster data (vtx + edges) with orbital and connector attributes.
  */
 UCLASS(BlueprintType, ClassGroup = (Procedural), Category="PCGEx|Valency", meta=(Keywords = "valency generative growth grow seed connector bonding", PCGExNodeLibraryDoc="valency/valency-generative"))
-class PCGEXELEMENTSVALENCY_API UPCGExValencyGenerativeSettings : public UPCGExPointsProcessorSettings
+class PCGEXELEMENTSVALENCY_API UPCGExValencyBondingGenerativeSettings : public UPCGExPointsProcessorSettings
 {
 	GENERATED_BODY()
 
@@ -119,9 +119,9 @@ public:
 	bool bOutputConnectorData = true;
 };
 
-struct PCGEXELEMENTSVALENCY_API FPCGExValencyGenerativeContext final : FPCGExPointsProcessorContext
+struct PCGEXELEMENTSVALENCY_API FPCGExValencyBondingGenerativeContext final : FPCGExPointsProcessorContext
 {
-	friend class FPCGExValencyGenerativeElement;
+	friend class FPCGExValencyBondingGenerativeElement;
 
 	virtual void RegisterAssetDependencies() override;
 
@@ -153,10 +153,10 @@ protected:
 	PCGEX_ELEMENT_BATCH_POINT_DECL
 };
 
-class PCGEXELEMENTSVALENCY_API FPCGExValencyGenerativeElement final : public FPCGExPointsProcessorElement
+class PCGEXELEMENTSVALENCY_API FPCGExValencyBondingGenerativeElement final : public FPCGExPointsProcessorElement
 {
 protected:
-	PCGEX_ELEMENT_CREATE_CONTEXT(ValencyGenerative)
+	PCGEX_ELEMENT_CREATE_CONTEXT(ValencyBondingGenerative)
 
 	virtual bool Boot(FPCGExContext* InContext) const override;
 	virtual void PostLoadAssetsDependencies(FPCGExContext* InContext) const override;
@@ -164,9 +164,9 @@ protected:
 	virtual bool AdvanceWork(FPCGExContext* InContext, const UPCGExSettings* InSettings) const override;
 };
 
-namespace PCGExValencyGenerative
+namespace PCGExValencyBondingGenerative
 {
-	class FProcessor final : public PCGExPointsMT::TProcessor<FPCGExValencyGenerativeContext, UPCGExValencyGenerativeSettings>
+	class FProcessor final : public PCGExPointsMT::TProcessor<FPCGExValencyBondingGenerativeContext, UPCGExValencyBondingGenerativeSettings>
 	{
 		/** Per-seed resolved module index (written in parallel during ProcessPoints) */
 		TArray<int32> ResolvedModules;
