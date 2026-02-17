@@ -13,7 +13,7 @@
  * Modifier constraint: applies a random offset within a 3D box around the connector point.
  * The box is oriented in the parent connector's local space.
  */
-USTRUCT(BlueprintType, DisplayName="Volume Offset")
+USTRUCT(BlueprintType, DisplayName="○ · Volume Offset")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_VolumeOffset : public FPCGExConstraintModifier
 {
 	GENERATED_BODY()

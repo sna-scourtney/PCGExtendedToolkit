@@ -27,7 +27,7 @@ enum class EPCGExContextProperty : uint8
  * Filter constraint: evaluates a growth context property against a threshold.
  * Acts as an L-system-style condition — prunes all variants when the condition fails.
  */
-USTRUCT(BlueprintType, DisplayName="Context Condition")
+USTRUCT(BlueprintType, DisplayName="✕ · Context Condition")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_ContextCondition : public FPCGExConstraintFilter
 {
 	GENERATED_BODY()

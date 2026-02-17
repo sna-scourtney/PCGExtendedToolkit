@@ -17,6 +17,15 @@
 #include "EditorMode/Constraints/PCGExConstraintVis_Preset.h"
 #include "EditorMode/Constraints/PCGExConstraintVis_Branch.h"
 #include "EditorMode/Constraints/PCGExConstraintVis_ContextCondition.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_ConicRange.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_ArcSurface.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_ArcRepeat.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_SnapToGrid.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_Probability.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_ScaleRamp.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_AlignToWorld.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_Lattice.h"
+#include "EditorMode/Constraints/PCGExConstraintVis_Spiral.h"
 #include "Growth/Constraints/PCGExConstraint_AngularRange.h"
 #include "Growth/Constraints/PCGExConstraint_SurfaceOffset.h"
 #include "Growth/Constraints/PCGExConstraint_VolumeOffset.h"
@@ -24,6 +33,15 @@
 #include "Growth/Constraints/PCGExConstraintPreset.h"
 #include "Growth/Constraints/PCGExConstraint_Branch.h"
 #include "Growth/Constraints/PCGExConstraint_ContextCondition.h"
+#include "Growth/Constraints/PCGExConstraint_ConicRange.h"
+#include "Growth/Constraints/PCGExConstraint_ArcSurface.h"
+#include "Growth/Constraints/PCGExConstraint_ArcRepeat.h"
+#include "Growth/Constraints/PCGExConstraint_SnapToGrid.h"
+#include "Growth/Constraints/PCGExConstraint_Probability.h"
+#include "Growth/Constraints/PCGExConstraint_ScaleRamp.h"
+#include "Growth/Constraints/PCGExConstraint_AlignToWorld.h"
+#include "Growth/Constraints/PCGExConstraint_Lattice.h"
+#include "Growth/Constraints/PCGExConstraint_Spiral.h"
 #include "Components/PCGExValencyCageConnectorComponent.h"
 #include "Details/PCGExPropertyOutputConfigCustomization.h"
 #include "Details/PCGExValencyConnectorCompatibilityCustomization.h"
@@ -53,6 +71,15 @@ void FPCGExElementsValencyEditorModule::StartupModule()
 		Registry.Register<FPCGExConstraint_Preset, FPresetVisualizer>();
 		Registry.Register<FPCGExConstraint_Branch, FBranchVisualizer>();
 		Registry.Register<FPCGExConstraint_ContextCondition, FContextConditionVisualizer>();
+		Registry.Register<FPCGExConstraint_ConicRange, FConicRangeVisualizer>();
+		Registry.Register<FPCGExConstraint_ArcSurface, FArcSurfaceVisualizer>();
+		Registry.Register<FPCGExConstraint_ArcRepeat, FArcRepeatVisualizer>();
+		Registry.Register<FPCGExConstraint_SnapToGrid, FSnapToGridVisualizer>();
+		Registry.Register<FPCGExConstraint_Probability, FProbabilityVisualizer>();
+		Registry.Register<FPCGExConstraint_ScaleRamp, FScaleRampVisualizer>();
+		Registry.Register<FPCGExConstraint_AlignToWorld, FAlignToWorldVisualizer>();
+		Registry.Register<FPCGExConstraint_Lattice, FLatticeVisualizer>();
+		Registry.Register<FPCGExConstraint_Spiral, FSpiralVisualizer>();
 	}
 
 	// Property customizations

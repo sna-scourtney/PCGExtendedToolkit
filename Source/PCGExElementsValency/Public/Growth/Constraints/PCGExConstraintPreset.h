@@ -29,7 +29,7 @@ public:
  * Constraint that expands to the contents of a Constraint Preset data asset.
  * Flattened during the pre-pass before pipeline execution.
  */
-USTRUCT(BlueprintType, DisplayName="Preset")
+USTRUCT(BlueprintType, DisplayName="▣ · Preset")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_Preset : public FPCGExConnectorConstraint
 {
 	GENERATED_BODY()

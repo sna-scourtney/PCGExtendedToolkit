@@ -13,7 +13,7 @@
  * Modifier constraint: slides the attachment point within a rectangular region
  * on the connector face plane.
  */
-USTRUCT(BlueprintType, DisplayName="Surface Offset")
+USTRUCT(BlueprintType, DisplayName="○ · Surface Offset")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_SurfaceOffset : public FPCGExConstraintModifier
 {
 	GENERATED_BODY()
