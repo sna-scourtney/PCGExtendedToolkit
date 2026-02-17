@@ -699,6 +699,31 @@ void UPCGExValencyCageEditorMode::OnLevelActorAdded(AActor* Actor)
 		ReferenceTracker.RebuildDependencyGraph();
 		OnSceneChanged.Broadcast();
 	}
+	// Non-cage/volume/palette actor - check if it landed inside any container
+	// This handles actor duplication (Ctrl+D, Alt+drag) within cages/palettes
+	else if (AssetTracker.IsEnabled())
+	{
+		for (const TWeakObjectPtr<APCGExValencyCageBase>& CagePtr : CachedCages)
+		{
+			if (APCGExValencyCage* ContainerCage = Cast<APCGExValencyCage>(CagePtr.Get()))
+			{
+				if (!ContainerCage->IsNullCage() && ContainerCage->bAutoRegisterContainedAssets && ContainerCage->IsActorInside(Actor))
+				{
+					DirtyStateManager.MarkCageDirty(ContainerCage, EValencyDirtyFlags::Assets);
+				}
+			}
+		}
+		for (const TWeakObjectPtr<APCGExValencyAssetPalette>& PalettePtr : CachedPalettes)
+		{
+			if (APCGExValencyAssetPalette* ContainerPalette = PalettePtr.Get())
+			{
+				if (ContainerPalette->bAutoRegisterContainedAssets && ContainerPalette->IsActorInside(Actor))
+				{
+					DirtyStateManager.MarkPaletteDirty(ContainerPalette, EValencyDirtyFlags::Assets);
+				}
+			}
+		}
+	}
 }
 
 void UPCGExValencyCageEditorMode::OnLevelActorDeleted(AActor* Actor)
