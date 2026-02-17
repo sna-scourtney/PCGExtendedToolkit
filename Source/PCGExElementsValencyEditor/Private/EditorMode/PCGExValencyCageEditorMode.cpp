@@ -273,10 +273,11 @@ void UPCGExValencyCageEditorMode::OnRenderCallback(IToolsContextRenderAPI* Rende
 						FLinearColor GhostColor = GhostConn->GetEffectiveDebugColor(ConnSet);
 						GhostColor.A = 0.35f;
 
+						const float GhostScaleFactor = GhostWorld.GetScale3D().GetAbsMax();
 						FPCGExValencyDrawHelper::DrawConnectorShape(
 							PDI, GhostLoc,
 							GhostRot.GetForwardVector(), GhostRot.GetRightVector(), GhostRot.GetUpVector(),
-							GhostConn->Polarity, Settings->ConnectorVisualizerSize, Settings->ConnectorArrowLength,
+							GhostConn->Polarity, Settings->ConnectorVisualizerSize * GhostScaleFactor, Settings->ConnectorArrowLength * GhostScaleFactor,
 							GhostColor, false);
 
 						// Draw ghost constraints at the preview transform

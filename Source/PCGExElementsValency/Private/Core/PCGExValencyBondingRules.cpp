@@ -83,7 +83,12 @@ bool UPCGExValencyBondingRules::Compile()
 	CompiledData.AllModuleConnectors.Empty();
 	CompiledData.ModulePlacementPolicies.SetNum(Modules.Num());
 	CompiledData.ModuleIsDeadEnd.SetNum(Modules.Num());
+	CompiledData.ModuleIsPreferredStart.SetNum(Modules.Num());
+	CompiledData.bHasAnyPreferredStart = false;
 	CompiledData.ModuleBoundsModifiers.SetNum(Modules.Num());
+	CompiledData.ModulePlacementConditionHeaders.SetNum(Modules.Num());
+	CompiledData.AllPlacementConditions.Empty();
+	CompiledData.bHasAnyPlacementConditions = false;
 
 	// Populate module data
 	VALENCY_LOG_SUBSECTION(Compilation, "Compiling Module Data");
@@ -100,7 +105,19 @@ bool UPCGExValencyBondingRules::Compile()
 		CompiledData.ModuleHasLocalTransform[ModuleIndex] = Module.bHasLocalTransform;
 		CompiledData.ModulePlacementPolicies[ModuleIndex] = Module.PlacementPolicy;
 		CompiledData.ModuleIsDeadEnd[ModuleIndex] = Module.Settings.bIsDeadEnd;
+		CompiledData.ModuleIsPreferredStart[ModuleIndex] = Module.Settings.bPreferredStartingPoint;
+		if (Module.Settings.bPreferredStartingPoint) { CompiledData.bHasAnyPreferredStart = true; }
 		CompiledData.ModuleBoundsModifiers[ModuleIndex] = Module.Settings.BoundsModifier;
+
+		// Populate placement condition header and flattened conditions
+		const int32 ConditionStartIndex = CompiledData.AllPlacementConditions.Num();
+		const int32 ConditionCount = Module.Settings.PlacementConditions.Num();
+		CompiledData.ModulePlacementConditionHeaders[ModuleIndex] = FIntPoint(ConditionStartIndex, ConditionCount);
+		if (ConditionCount > 0)
+		{
+			CompiledData.AllPlacementConditions.Append(Module.Settings.PlacementConditions);
+			CompiledData.bHasAnyPlacementConditions = true;
+		}
 
 		// Populate transform header and flattened transforms
 		const int32 TransformStartIndex = CompiledData.AllLocalTransforms.Num();
