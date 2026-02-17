@@ -24,6 +24,9 @@ namespace PCGExEnumCustomization
 
 	PCGEXCOREEDITOR_API
 	TSharedRef<SWidget> CreateCheckboxGroup(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& Enum, const TSet<int32>& SkipIndices);
+
+	PCGEXCOREEDITOR_API
+	TSharedRef<SWidget> CreateCheckboxGroup(UEnum* Enum, TFunction<uint8()> GetValue, TFunction<void(uint8)> SetValue, const TSet<int32>& SkipIndices = {});
 }
 
 class PCGEXCOREEDITOR_API FPCGExInlineEnumCustomization : public IPropertyTypeCustomization

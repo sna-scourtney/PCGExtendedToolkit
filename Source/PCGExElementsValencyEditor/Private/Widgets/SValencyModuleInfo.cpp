@@ -358,14 +358,33 @@ TSharedRef<SWidget> SValencyModuleInfo::BuildCageInfoContent(APCGExValencyCageBa
 			];
 		}
 
-		// Row 7: Weight spinbox
+		// Row 7: Weight + Min Spawns + Max Spawns + Dead End
 		Content->AddSlot().AutoHeight().Padding(0, Style::RowPadding)
 		[
-			PCGExValencyWidgets::MakeLabeledSpinBox(
-				NSLOCTEXT("PCGExValency", "InfoWeight", "Weight"),
-				Container->ModuleSettings.Weight, 0.001f, 0.1f,
-				PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, Weight)),
-				[WeakContainer, WeakCage](float NewValue)
+			SNew(SHorizontalBox)
+			// Weight
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 2, 0)
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("PCGExValency", "InfoWeightLabel", "Weight"))
+				.Font(Style::Label())
+				.ColorAndOpacity(Style::LabelColor())
+				.ToolTipText(PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, Weight)))
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.Padding(0, 0, 6, 0)
+			[
+				SNew(SSpinBox<float>)
+				.Value(Container->ModuleSettings.Weight)
+				.MinValue(0.001f)
+				.Delta(0.1f)
+				.Font(Style::Label())
+				.ToolTipText(PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, Weight)))
+				.OnValueCommitted_Lambda([WeakContainer, WeakCage](float NewValue, ETextCommit::Type)
 				{
 					if (APCGExValencyAssetContainerBase* C = WeakContainer.Get())
 					{
@@ -378,29 +397,22 @@ TSharedRef<SWidget> SValencyModuleInfo::BuildCageInfoContent(APCGExValencyCageBa
 						}
 					}
 				})
-		];
-
-		// Row 8: Min / Max Spawns dual row
-		Content->AddSlot().AutoHeight().Padding(0, Style::RowPadding)
-		[
-			SNew(SHorizontalBox)
+			]
+			// Min Spawns
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(0, 0, 4, 0)
+			.Padding(0, 0, 2, 0)
 			[
-				SNew(SBox)
-				.WidthOverride(Style::LabelWidth)
-				[
-					SNew(STextBlock)
-					.Text(NSLOCTEXT("PCGExValency", "InfoMinSpawns", "Min Spawns"))
-					.Font(Style::Label())
-					.ColorAndOpacity(Style::LabelColor())
-				]
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("PCGExValency", "InfoMinLabel", "Min"))
+				.Font(Style::Label())
+				.ColorAndOpacity(Style::LabelColor())
+				.ToolTipText(PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, MinSpawns)))
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
-			.Padding(0, 0, 8, 0)
+			.Padding(0, 0, 6, 0)
 			[
 				SNew(SSpinBox<int32>)
 				.Value(Container->ModuleSettings.MinSpawns)
@@ -421,18 +433,21 @@ TSharedRef<SWidget> SValencyModuleInfo::BuildCageInfoContent(APCGExValencyCageBa
 					}
 				})
 			]
+			// Max Spawns
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(0, 0, 4, 0)
+			.Padding(0, 0, 2, 0)
 			[
 				SNew(STextBlock)
-				.Text(NSLOCTEXT("PCGExValency", "InfoMaxSpawns", "Max"))
+				.Text(NSLOCTEXT("PCGExValency", "InfoMaxLabel", "Max"))
 				.Font(Style::Label())
 				.ColorAndOpacity(Style::LabelColor())
+				.ToolTipText(PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, MaxSpawns)))
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
+			.Padding(0, 0, 6, 0)
 			[
 				SNew(SSpinBox<int32>)
 				.Value(Container->ModuleSettings.MaxSpawns)
@@ -453,12 +468,7 @@ TSharedRef<SWidget> SValencyModuleInfo::BuildCageInfoContent(APCGExValencyCageBa
 					}
 				})
 			]
-		];
-
-		// Row 9: Dead End + Preferred Start toggle buttons
-		Content->AddSlot().AutoHeight().Padding(0, Style::RowPadding)
-		[
-			SNew(SHorizontalBox)
+			// Dead End toggle
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
@@ -482,28 +492,30 @@ TSharedRef<SWidget> SValencyModuleInfo::BuildCageInfoContent(APCGExValencyCageBa
 						}
 					})
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				PCGExValencyWidgets::MakeToggleButton(
-					NSLOCTEXT("PCGExValency", "InfoPrefStart", "Preferred Start"),
-					PCGExValencyWidgets::GetPropertyTooltip(FPCGExValencyModuleSettings::StaticStruct(), GET_MEMBER_NAME_CHECKED(FPCGExValencyModuleSettings, bPreferredStartingPoint)),
-					[WeakContainer]() { return WeakContainer.IsValid() && WeakContainer->ModuleSettings.bPreferredStartingPoint; },
-					[WeakContainer, WeakCage, WeakMode]()
+		];
+
+		// Row 8: Behavior flags (Preferred Start, Preferred End, Greedy)
+		Content->AddSlot().AutoHeight().Padding(0, Style::RowPadding)
+		[
+			PCGExEnumCustomization::CreateCheckboxGroup(
+				StaticEnum<EPCGExModuleBehavior>(),
+				[WeakContainer]() -> uint8
+				{
+					return WeakContainer.IsValid() ? WeakContainer->ModuleSettings.BehaviorFlags : 0;
+				},
+				[WeakContainer, WeakCage, WeakMode](uint8 NewValue)
+				{
+					if (APCGExValencyAssetContainerBase* C = WeakContainer.Get())
 					{
-						if (APCGExValencyAssetContainerBase* C = WeakContainer.Get())
+						FScopedTransaction Transaction(NSLOCTEXT("PCGExValency", "ChangeBehaviorFlags", "Change Module Behavior"));
+						C->Modify();
+						C->ModuleSettings.BehaviorFlags = NewValue;
+						if (APCGExValencyCageBase* CageBase = Cast<APCGExValencyCageBase>(C))
 						{
-							FScopedTransaction Transaction(NSLOCTEXT("PCGExValency", "TogglePrefStart", "Toggle Preferred Start"));
-							C->Modify();
-							C->ModuleSettings.bPreferredStartingPoint = !C->ModuleSettings.bPreferredStartingPoint;
-							if (APCGExValencyCageBase* CageBase = Cast<APCGExValencyCageBase>(C))
-							{
-								CageBase->RequestRebuild(EValencyRebuildReason::AssetChange);
-							}
+							CageBase->RequestRebuild(EValencyRebuildReason::AssetChange);
 						}
-					})
-			]
+					}
+				})
 		];
 	}
 
