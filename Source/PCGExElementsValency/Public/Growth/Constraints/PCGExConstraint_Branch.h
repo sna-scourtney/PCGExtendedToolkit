@@ -16,7 +16,7 @@ class UPCGExConstraintPreset;
  * Partitions the variant pool based on a filter condition, runs separate
  * sub-pipelines on each partition, then rejoins the results.
  */
-USTRUCT(BlueprintType, DisplayName="Branch")
+USTRUCT(BlueprintType, DisplayName="∨ · Branch")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_Branch : public FPCGExConnectorConstraint
 {
 	GENERATED_BODY()

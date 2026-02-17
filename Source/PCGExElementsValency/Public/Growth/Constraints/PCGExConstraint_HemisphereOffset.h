@@ -13,7 +13,7 @@
  * Modifier constraint: applies a random offset within a hemisphere oriented
  * along the parent connector's forward direction.
  */
-USTRUCT(BlueprintType, DisplayName="Hemisphere Offset")
+USTRUCT(BlueprintType, DisplayName="○ · Hemisphere Offset")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_HemisphereOffset : public FPCGExConstraintModifier
 {
 	GENERATED_BODY()

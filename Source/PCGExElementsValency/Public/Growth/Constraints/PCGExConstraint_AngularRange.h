@@ -15,7 +15,7 @@
  * Produces N evenly-spaced rotation steps within a specified angular range
  * defined by a center angle and half-width.
  */
-USTRUCT(BlueprintType, DisplayName="Angular Range")
+USTRUCT(BlueprintType, DisplayName="● · Angular Range")
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraint_AngularRange : public FPCGExConstraintGenerator
 {
 	GENERATED_BODY()

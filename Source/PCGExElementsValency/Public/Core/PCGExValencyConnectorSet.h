@@ -168,7 +168,7 @@ struct PCGEXELEMENTSVALENCY_API FPCGExConnectorConstraint
  * Intermediate base for Generator constraints.
  * Subclass this when creating constraints that produce multiple transform variants.
  */
-USTRUCT(BlueprintType, meta=(Hidden))
+USTRUCT(BlueprintType, meta=(Hidden)) // ● ·
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraintGenerator : public FPCGExConnectorConstraint
 {
 	GENERATED_BODY()
@@ -179,7 +179,7 @@ struct PCGEXELEMENTSVALENCY_API FPCGExConstraintGenerator : public FPCGExConnect
  * Intermediate base for Modifier constraints.
  * Subclass this when creating constraints that apply offsets/jitter to variants.
  */
-USTRUCT(BlueprintType, meta=(Hidden))
+USTRUCT(BlueprintType, meta=(Hidden)) // ○ ·
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraintModifier : public FPCGExConnectorConstraint
 {
 	GENERATED_BODY()
@@ -190,7 +190,7 @@ struct PCGEXELEMENTSVALENCY_API FPCGExConstraintModifier : public FPCGExConnecto
  * Intermediate base for Filter constraints.
  * Subclass this when creating constraints that reject invalid variants.
  */
-USTRUCT(BlueprintType, meta=(Hidden))
+USTRUCT(BlueprintType, meta=(Hidden)) // ✕ ·
 struct PCGEXELEMENTSVALENCY_API FPCGExConstraintFilter : public FPCGExConnectorConstraint
 {
 	GENERATED_BODY()
