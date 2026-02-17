@@ -7,6 +7,7 @@
 #include "Factories/PCGExInstancedFactory.h"
 #include "Factories/PCGExOperation.h"
 #include "Core/PCGExValencyCommon.h"
+#include "Core/PCGExPlacementCondition.h"
 #include "Core/PCGExValencyBondingRules.h"
 #include "Core/PCGExValencyConnectorSet.h"
 #include "Core/PCGExValencySolverOperation.h"

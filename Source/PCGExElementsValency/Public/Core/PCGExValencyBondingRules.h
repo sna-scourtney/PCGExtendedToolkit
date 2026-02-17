@@ -276,9 +276,29 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyBondingRulesCompiled
 	UPROPERTY()
 	TArray<bool> ModuleIsDeadEnd;
 
+	/** Per-module preferred starting point flag (parallel array) */
+	UPROPERTY()
+	TArray<bool> ModuleIsPreferredStart;
+
+	/** Whether any module is marked as preferred start (cached at compile time) */
+	UPROPERTY()
+	bool bHasAnyPreferredStart = false;
+
 	/** Per-module bounds modifiers for generative solving (parallel array) */
 	UPROPERTY()
 	TArray<FPCGExBoundsModifier> ModuleBoundsModifiers;
+
+	/** Per-module placement condition headers (X=start, Y=count into AllPlacementConditions) */
+	UPROPERTY()
+	TArray<FIntPoint> ModulePlacementConditionHeaders;
+
+	/** Flattened placement conditions for all modules */
+	UPROPERTY()
+	TArray<FInstancedStruct> AllPlacementConditions;
+
+	/** Whether any module has explicit placement conditions (compile-time cache) */
+	UPROPERTY()
+	bool bHasAnyPlacementConditions = false;
 
 	/** Compiled layer data */
 	UPROPERTY()
@@ -344,6 +364,18 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyBondingRulesCompiled
 	FORCEINLINE bool IsModuleNormal(int32 ModuleIndex) const
 	{
 		return !ModulePlacementPolicies.IsValidIndex(ModuleIndex) || ModulePlacementPolicies[ModuleIndex] == EPCGExModulePlacementPolicy::Normal;
+	}
+
+	/** Get the placement conditions for a module */
+	TConstArrayView<FInstancedStruct> GetModulePlacementConditions(int32 ModuleIndex) const
+	{
+		if (!bHasAnyPlacementConditions || !ModulePlacementConditionHeaders.IsValidIndex(ModuleIndex))
+		{
+			return TConstArrayView<FInstancedStruct>();
+		}
+		const FIntPoint& Header = ModulePlacementConditionHeaders[ModuleIndex];
+		if (Header.Y == 0) { return TConstArrayView<FInstancedStruct>(); }
+		return TConstArrayView<FInstancedStruct>(&AllPlacementConditions[Header.X], Header.Y);
 	}
 
 	/** Build the MaskToCandidates lookup table */

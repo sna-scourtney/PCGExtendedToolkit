@@ -7,6 +7,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Core/PCGExValencyConnectorSet.h"
 #include "Cages/PCGExValencyCageBase.h"
+#include "PCGExValencyEditorSettings.h"
 
 UPCGExValencyCageConnectorComponent::UPCGExValencyCageConnectorComponent()
 {
@@ -25,16 +26,75 @@ void UPCGExValencyCageConnectorComponent::OnRegister()
 	}
 }
 
+void UPCGExValencyCageConnectorComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+	RequestCageRebuild();
+}
+
+void UPCGExValencyCageConnectorComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+	// Only trigger rebuild if the cage itself isn't being destroyed
+	if (!bDestroyingHierarchy)
+	{
+		RequestCageRebuild();
+	}
+
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
 #if WITH_EDITOR
 void UPCGExValencyCageConnectorComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	// Check PCGEX_ValencyRebuild meta (same pattern as actor base class)
+	bool bShouldRebuild = false;
+	if (const FProperty* Property = PropertyChangedEvent.Property)
+	{
+		if (Property->HasMetaData(TEXT("PCGEX_ValencyRebuild")))
+		{
+			bShouldRebuild = true;
+		}
+	}
+	if (!bShouldRebuild && PropertyChangedEvent.MemberProperty)
+	{
+		if (PropertyChangedEvent.MemberProperty->HasMetaData(TEXT("PCGEX_ValencyRebuild")))
+		{
+			bShouldRebuild = true;
+		}
+	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGExValencyCageConnectorComponent, ConnectorType) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UPCGExValencyCageConnectorComponent, Polarity) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UPCGExValencyCageConnectorComponent, bEnabled))
+	// Transform properties are inherited from USceneComponent and can't carry meta tags
+	if (!bShouldRebuild)
+	{
+		const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+		if (PropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
+			PropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
+			PropertyName == USceneComponent::GetRelativeScale3DPropertyName())
+		{
+			bShouldRebuild = true;
+		}
+	}
+
+	// Debounce interactive changes (dragging sliders) to prevent spam
+	if (bShouldRebuild && !UPCGExValencyEditorSettings::ShouldAllowRebuild(PropertyChangedEvent.ChangeType))
+	{
+		bShouldRebuild = false;
+	}
+
+	if (bShouldRebuild)
+	{
+		RequestCageRebuild();
+	}
+}
+
+void UPCGExValencyCageConnectorComponent::PostEditComponentMove(bool bFinished)
+{
+	Super::PostEditComponentMove(bFinished);
+
+	// Trigger rebuild after transform changes via standard viewport gizmo
+	if (bFinished)
 	{
 		RequestCageRebuild();
 	}

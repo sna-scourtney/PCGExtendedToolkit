@@ -319,6 +319,15 @@ namespace PCGExValencyBondingGenerative
 				}
 			}
 
+			// If any module is preferred start, filter to only those
+			if (CompiledRules->bHasAnyPreferredStart)
+			{
+				CandidateModules.RemoveAll([CompiledRules](int32 Idx)
+				{
+					return !CompiledRules->ModuleIsPreferredStart[Idx];
+				});
+			}
+
 			if (CandidateModules.IsEmpty())
 			{
 				ResolvedModules[Index] = -1;

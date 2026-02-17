@@ -72,6 +72,12 @@ struct PCGEXELEMENTSVALENCY_API FPCGExOpenConnector
 
 	/** Weight budget consumed so far */
 	float CumulativeWeight = 0.0f;
+
+	/** Connector expansion priority (from compiled connector data) */
+	float Priority = 0.0f;
+
+	/** Remaining spawn attempts for this connector */
+	int32 RemainingSpawns = 1;
 };
 
 /**
