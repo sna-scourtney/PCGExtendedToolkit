@@ -101,6 +101,15 @@ void FPCGExValencyGrowthOperation::Grow(TArray<FPCGExPlacedModule>& OutPlaced)
 			if (TryPlaceModule(Connector, ModuleIdx, ConnectorIdx, OutPlaced, Frontier))
 			{
 				bPlaced = true;
+
+				// Re-add to frontier if multi-spawn connector has remaining capacity
+				if (Connector.RemainingSpawns > 1)
+				{
+					FPCGExOpenConnector Respawned = Connector;
+					Respawned.RemainingSpawns--;
+					Frontier.Add(Respawned);
+				}
+
 				break;
 			}
 		}
@@ -297,8 +306,32 @@ bool FPCGExValencyGrowthOperation::TryPlaceModuleAt(
 	// Compute world bounds
 	const FBox WorldBounds = ComputeWorldBounds(ModuleIndex, WorldTransform);
 
-	// Check overlap (skip for degenerate bounds)
-	if (WorldBounds.IsValid && BoundsTracker->Overlaps(WorldBounds)) { return false; }
+	// Run placement condition stack (if module has conditions)
+	const TConstArrayView<FInstancedStruct> Conditions =
+		CompiledRules->GetModulePlacementConditions(ModuleIndex);
+
+	if (Conditions.Num() > 0)
+	{
+		FPCGExPlacementContext PlacementCtx;
+		PlacementCtx.WorldBounds = WorldBounds;
+		PlacementCtx.WorldTransform = WorldTransform;
+		PlacementCtx.ModuleIndex = ModuleIndex;
+		PlacementCtx.Depth = Connector.Depth + 1;
+		PlacementCtx.CumulativeWeight = Connector.CumulativeWeight;
+		PlacementCtx.PlacedCount = Budget->CurrentTotal;
+		PlacementCtx.BoundsTracker = BoundsTracker;
+		PlacementCtx.CompiledRules = CompiledRules;
+
+		for (const FInstancedStruct& Instance : Conditions)
+		{
+			if (const FPCGExPlacementCondition* Cond =
+				Instance.GetPtr<FPCGExPlacementCondition>())
+			{
+				if (!Cond->Evaluate(PlacementCtx)) { return false; }
+			}
+		}
+	}
+	// Empty stack = no validation (module places unconditionally)
 
 	// Place the module
 	FPCGExPlacedModule NewModule;
@@ -359,6 +392,8 @@ void FPCGExValencyGrowthOperation::ExpandFrontier(
 		OpenConnector.WorldTransform = ConnectorWorld;
 		OpenConnector.Depth = Placed.Depth;
 		OpenConnector.CumulativeWeight = Placed.CumulativeWeight;
+		OpenConnector.Priority = ModuleConnector.Priority;
+		OpenConnector.RemainingSpawns = ModuleConnector.SpawnCapacity;
 
 		OutFrontier.Add(OpenConnector);
 	}

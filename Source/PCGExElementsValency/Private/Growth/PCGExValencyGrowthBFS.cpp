@@ -9,8 +9,19 @@ int32 FPCGExValencyGrowthBFS::SelectNextConnector(TArray<FPCGExOpenConnector>& F
 {
 	if (Frontier.IsEmpty()) { return INDEX_NONE; }
 
-	// BFS: pop from front (FIFO)
-	return 0;
+	// BFS: lowest depth first; break ties by highest priority
+	int32 BestIdx = 0;
+	for (int32 i = 1; i < Frontier.Num(); ++i)
+	{
+		const FPCGExOpenConnector& Curr = Frontier[i];
+		const FPCGExOpenConnector& Best = Frontier[BestIdx];
+		if (Curr.Depth < Best.Depth ||
+			(Curr.Depth == Best.Depth && Curr.Priority > Best.Priority))
+		{
+			BestIdx = i;
+		}
+	}
+	return BestIdx;
 }
 
 #pragma endregion

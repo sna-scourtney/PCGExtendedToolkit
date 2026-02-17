@@ -421,6 +421,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 					InheritedConn.bOverrideOffset = true;
 					InheritedConn.Polarity = SrcConn->Polarity;
 					InheritedConn.ConstraintOverrides = SrcConn->ConstraintOverrides;
+					InheritedConn.Priority = SrcConn->Priority;
+					InheritedConn.SpawnCapacity = SrcConn->SpawnCapacity;
 					InheritedConn.OverrideMode = SrcConn->OverrideMode;
 					InheritedConn.bManualOrbitalOverride = SrcConn->bManualOrbitalOverride;
 					InheritedConn.ManualOrbitalIndex = SrcConn->ManualOrbitalIndex;
@@ -510,6 +512,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 				ModuleConnector.bOverrideOffset = true;
 				ModuleConnector.Polarity = ConnectorComp->Polarity;
 				ModuleConnector.ConstraintOverrides = ConnectorComp->ConstraintOverrides;
+				ModuleConnector.Priority = ConnectorComp->Priority;
+				ModuleConnector.SpawnCapacity = ConnectorComp->SpawnCapacity;
 				ModuleConnector.OverrideMode = ConnectorComp->OverrideMode;
 				ModuleConnector.bManualOrbitalOverride = ConnectorComp->bManualOrbitalOverride;
 				ModuleConnector.ManualOrbitalIndex = ConnectorComp->ManualOrbitalIndex;

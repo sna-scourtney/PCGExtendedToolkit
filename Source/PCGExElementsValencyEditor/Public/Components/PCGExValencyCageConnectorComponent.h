@@ -55,6 +55,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connector")
 	bool bInheritable = true;
 
+	/** Frontier expansion priority. Higher = expanded sooner. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connector")
+	float Priority = 0.0f;
+
+	/** Max children this connector can spawn. 1 = normal. >1 = multi-spawn. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connector", meta = (ClampMin = "1", ClampMax = "16"))
+	int32 SpawnCapacity = 1;
+
 	// ========== Constraints ==========
 
 	/** Per-instance constraint overrides */

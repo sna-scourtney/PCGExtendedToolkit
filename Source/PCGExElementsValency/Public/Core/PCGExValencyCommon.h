@@ -10,6 +10,7 @@
 #include "StructUtils/InstancedStruct.h"
 #include "Core/PCGExValencyConnectorSet.h"
 #include "Core/PCGExConnectorTransformStrategy.h"
+#include "Core/PCGExPlacementCondition.h"
 
 #include "PCGExValencyCommon.generated.h"
 
@@ -265,6 +266,18 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyModuleSettings
 	/** If true, this module terminates growth - its sockets are not expanded */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Generative", meta = (PCGEX_ValencyRebuild))
 	bool bIsDeadEnd = false;
+
+	/** If true, this module is preferred as a growth starting point */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Generative", meta = (PCGEX_ValencyRebuild))
+	bool bPreferredStartingPoint = false;
+
+	/** Placement conditions that must ALL pass for module placement during growth.
+	 *  Stack is evaluated in order — first failure rejects placement.
+	 *  Empty = no validation (module places unconditionally). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Generative",
+		meta=(BaseStruct="/Script/PCGExElementsValency.PCGExPlacementCondition",
+			  ExcludeBaseStruct, PCGEX_ValencyRebuild))
+	TArray<FInstancedStruct> PlacementConditions;
 };
 
 /**

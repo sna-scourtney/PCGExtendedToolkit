@@ -477,6 +477,14 @@ struct PCGEXELEMENTSVALENCY_API FPCGExValencyModuleConnector
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EPCGExConnectorPolarity Polarity = EPCGExConnectorPolarity::Universal;
 
+	/** Frontier expansion priority. Higher = expanded sooner. Default 0. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	float Priority = 0.0f;
+
+	/** Max children this connector can spawn. 1 = normal. >1 = multi-spawn. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "1", ClampMax = "16"))
+	int32 SpawnCapacity = 1;
+
 	/** Per-instance constraint overrides (set by builder from cage connector component) */
 	UPROPERTY()
 	TArray<FInstancedStruct> ConstraintOverrides;
