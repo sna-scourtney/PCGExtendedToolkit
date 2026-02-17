@@ -210,6 +210,10 @@ public:
 	//~ End Ghost Mesh Interface
 
 public:
+	/** If false, this cage is completely excluded from compilation (not inherited, mirrored, or built into bonding rules) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cage", meta = (PCGEX_ValencyRebuild))
+	bool bEnabledForCompilation = true;
+
 	/** Optional display name for this cage */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cage")
 	FString CageName;

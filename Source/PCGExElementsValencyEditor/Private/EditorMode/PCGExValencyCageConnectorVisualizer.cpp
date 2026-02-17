@@ -131,14 +131,33 @@ bool FPCGExValencyCageConnectorVisualizer::HandleInputDelta(FEditorViewportClien
 		return false;
 	}
 
+	bool bChanged = false;
+
 	if (!DeltaTranslate.IsZero())
 	{
 		ConnectorComp->SetWorldLocation(ConnectorComp->GetComponentLocation() + DeltaTranslate);
+		bChanged = true;
 	}
 
 	if (!DeltaRotate.IsZero())
 	{
 		ConnectorComp->SetWorldRotation(ConnectorComp->GetComponentRotation() + DeltaRotate);
+		bChanged = true;
+	}
+
+	if (!DeltaScale.IsZero())
+	{
+		ConnectorComp->SetWorldScale3D(ConnectorComp->GetComponentScale() + DeltaScale);
+		bChanged = true;
+	}
+
+	// Mark cage dirty so the dirty state manager triggers a rebuild
+	if (bChanged)
+	{
+		if (APCGExValencyCageBase* Cage = Cast<APCGExValencyCageBase>(OwnerActor))
+		{
+			Cage->RequestRebuild(EValencyRebuildReason::AssetChange);
+		}
 	}
 
 	return true;

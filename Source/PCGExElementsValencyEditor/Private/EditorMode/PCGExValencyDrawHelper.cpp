@@ -1143,16 +1143,32 @@ void FPCGExValencyDrawHelper::DrawConnectorConstraintsAt(
 	}
 
 	TArray<const FInstancedStruct*> ConstraintPtrs;
-	if (ConnSet)
+
+	const bool bHasOverrides = Connector->ConstraintOverrides.Num() > 0;
+
+	// Collect type-level defaults unless Replace mode with overrides
+	if (!bHasOverrides || Connector->OverrideMode == EPCGExConstraintOverrideMode::Append)
 	{
-		const int32 TypeIdx = ConnSet->FindConnectorTypeIndex(Connector->ConnectorType);
-		if (ConnSet->ConnectorTypes.IsValidIndex(TypeIdx))
+		if (ConnSet)
 		{
-			const TArray<FInstancedStruct>& Defaults = ConnSet->ConnectorTypes[TypeIdx].DefaultConstraints;
-			for (const FInstancedStruct& Instance : Defaults)
+			const int32 TypeIdx = ConnSet->FindConnectorTypeIndex(Connector->ConnectorType);
+			if (ConnSet->ConnectorTypes.IsValidIndex(TypeIdx))
 			{
-				ConstraintPtrs.Add(&Instance);
+				const TArray<FInstancedStruct>& Defaults = ConnSet->ConnectorTypes[TypeIdx].DefaultConstraints;
+				for (const FInstancedStruct& Instance : Defaults)
+				{
+					ConstraintPtrs.Add(&Instance);
+				}
 			}
+		}
+	}
+
+	// Add per-connector overrides
+	if (bHasOverrides)
+	{
+		for (const FInstancedStruct& Instance : Connector->ConstraintOverrides)
+		{
+			ConstraintPtrs.Add(&Instance);
 		}
 	}
 

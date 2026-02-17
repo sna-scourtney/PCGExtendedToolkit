@@ -261,6 +261,13 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 			continue;
 		}
 
+		// Skip cages disabled for compilation
+		if (!Cage->bEnabledForCompilation)
+		{
+			PCGEX_VALENCY_VERBOSE(Building, "  Cage '%s': Disabled for compilation - skipping.", *Cage->GetCageDisplayName());
+			continue;
+		}
+
 		// Trigger asset scan for cages with auto-registration enabled
 		if (Cage->bAutoRegisterContainedAssets)
 		{
@@ -390,6 +397,12 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 
 			AActor* SourceActor = MirrorEntry.Source;
 
+			// Skip disabled source cages
+			if (const APCGExValencyCageBase* SourceCageBase = Cast<APCGExValencyCageBase>(SourceActor))
+			{
+				if (!SourceCageBase->bEnabledForCompilation) continue;
+			}
+
 			// Collect inheritable connectors from source
 			TArray<UPCGExValencyCageConnectorComponent*> SourceConnectors;
 			if (APCGExValencyCageBase* SourceCage = Cast<APCGExValencyCageBase>(SourceActor))
@@ -420,6 +433,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 					InheritedConn.LocalOffset = SrcConn->GetConnectorLocalTransform();
 					InheritedConn.bOverrideOffset = true;
 					InheritedConn.Polarity = SrcConn->Polarity;
+					InheritedConn.Priority = SrcConn->Priority;
+					InheritedConn.SpawnCapacity = SrcConn->SpawnCapacity;
 					InheritedConn.ConstraintOverrides = SrcConn->ConstraintOverrides;
 					InheritedConn.Priority = SrcConn->Priority;
 					InheritedConn.SpawnCapacity = SrcConn->SpawnCapacity;
@@ -511,6 +526,8 @@ void UPCGExValencyBondingRulesBuilder::CollectCageData(
 				ModuleConnector.LocalOffset = SocketTransform;
 				ModuleConnector.bOverrideOffset = true;
 				ModuleConnector.Polarity = ConnectorComp->Polarity;
+				ModuleConnector.Priority = ConnectorComp->Priority;
+				ModuleConnector.SpawnCapacity = ConnectorComp->SpawnCapacity;
 				ModuleConnector.ConstraintOverrides = ConnectorComp->ConstraintOverrides;
 				ModuleConnector.Priority = ConnectorComp->Priority;
 				ModuleConnector.SpawnCapacity = ConnectorComp->SpawnCapacity;
@@ -911,6 +928,11 @@ TArray<FPCGExValencyAssetEntry> UPCGExValencyBondingRulesBuilder::GetEffectiveAs
 			return;
 		}
 		VisitedSources.Add(Source);
+		// Skip disabled source cages
+		if (const APCGExValencyCageBase* SourceCageBase = Cast<APCGExValencyCageBase>(Source))
+		{
+			if (!SourceCageBase->bEnabledForCompilation) return;
+		}
 
 		// Only collect assets if Assets flag is set
 		if (!(MirrorFlags & static_cast<uint8>(EPCGExMirrorContent::Assets)))
@@ -1066,6 +1088,11 @@ TArray<FInstancedStruct> UPCGExValencyBondingRulesBuilder::GetEffectivePropertie
 			return; // Cycle prevention
 		}
 		VisitedSources.Add(Source);
+		// Skip disabled source cages
+		if (const APCGExValencyCageBase* SourceCageBase = Cast<APCGExValencyCageBase>(Source))
+		{
+			if (!SourceCageBase->bEnabledForCompilation) return;
+		}
 
 		// Only collect properties if Properties flag is set
 		if (MirrorFlags & static_cast<uint8>(EPCGExMirrorContent::Properties))
@@ -1154,6 +1181,11 @@ TArray<FName> UPCGExValencyBondingRulesBuilder::GetEffectiveTags(const APCGExVal
 			return; // Cycle prevention
 		}
 		VisitedSources.Add(Source);
+		// Skip disabled source cages
+		if (const APCGExValencyCageBase* SourceCageBase = Cast<APCGExValencyCageBase>(Source))
+		{
+			if (!SourceCageBase->bEnabledForCompilation) return;
+		}
 
 		// Only collect tags if Tags flag is set
 		if (MirrorFlags & static_cast<uint8>(EPCGExMirrorContent::Tags))
