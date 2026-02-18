@@ -59,7 +59,9 @@ public class PCGExElementsValencyEditor : ModuleRules
 				"InputCore",
 				"ToolMenus",
 				"ComponentVisualizers",
-				"InteractiveToolsFramework"
+				"InteractiveToolsFramework",
+				"GraphEditor",
+				"AssetTools"
 			}
 		);
 

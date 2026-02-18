@@ -45,6 +45,7 @@
 #include "Growth/Constraints/PCGExConstraint_Spiral.h"
 #include "Components/PCGExValencyCageConnectorComponent.h"
 #include "Core/PCGExConnectorPatternAsset.h"
+#include "ConnectorPatternGraph/PCGExConnectorPatternActions.h"
 #include "Details/PCGExPropertyOutputConfigCustomization.h"
 #include "Details/PCGExValencyConnectorCompatibilityCustomization.h"
 
@@ -84,8 +85,8 @@ void FPCGExElementsValencyEditorModule::StartupModule()
 		Registry.Register<FPCGExConstraint_Spiral, FSpiralVisualizer>();
 	}
 
-	// Asset type actions
-	PCGEX_ASSET_TYPE_ACTION_BASIC(ConnectorPattern, "PCGEx Valency | Connector Pattern", UPCGExConnectorPatternAsset, FColor(180, 100, 220), EAssetTypeCategories::Misc)
+	// Asset type actions — custom editor with graph view
+	FAssetToolsModule::GetModule().Get().RegisterAssetTypeActions(MakeShared<FPCGExConnectorPatternActions>());
 
 	// Property customizations
 	PCGEX_REGISTER_CUSTO_START

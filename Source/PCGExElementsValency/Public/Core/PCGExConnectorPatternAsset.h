@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "PCGExValencyConnectorPattern.h"
 #include "PCGExValencyConnectorSet.h"
+#include "EdGraph/EdGraph.h"
 
 #include "PCGExConnectorPatternAsset.generated.h"
 
@@ -150,6 +151,12 @@ public:
 
 	/** Check if patterns have been compiled */
 	bool IsCompiled() const { return CompiledPatterns.HasPatterns(); }
+
+#if WITH_EDITORONLY_DATA
+	/** Graph used by the visual pattern editor. Persisted with the asset. */
+	UPROPERTY()
+	TObjectPtr<UEdGraph> PatternGraph;
+#endif
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
