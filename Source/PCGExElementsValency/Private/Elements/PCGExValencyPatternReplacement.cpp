@@ -100,7 +100,7 @@ bool FPCGExValencyPatternReplacementElement::PostBoot(FPCGExContext* InContext) 
 			if (Context->ConnectorSet)
 			{
 				const FName EdgeConnectorAttrName = Context->ConnectorSet->GetConnectorAttributeName();
-				if (!ConnFactory->ResolveAsset(&CompiledData, Context->ConnectorSet, EdgeConnectorAttrName))
+				if (!ConnFactory->ResolveAsset(Context, &CompiledData, Context->ConnectorSet, EdgeConnectorAttrName))
 				{
 					PCGE_LOG_C(Error, GraphAndLog, InContext, FTEXT("Connector Pattern Matcher: failed to resolve ConnectorPatternAsset."));
 					return false;
@@ -241,26 +241,7 @@ namespace PCGExValencyPatternReplacement
 			MatcherOperation->Annotate(PatternNameWriter, PatternMatchIndexWriter);
 
 			// Track annotated nodes for flag writing
-			for (const FPCGExValencyPatternMatch& Match : MatcherOperation->GetMatches())
-			{
-				if (!Match.IsValid()) { continue; }
-
-				// Skip unclaimed exclusive matches
-				if (!Match.bClaimed)
-				{
-					const FPCGExValencyPatternCompiled& Pattern = Context->CompiledPatterns->Patterns[Match.PatternIndex];
-					if (Pattern.Settings.bExclusive) { continue; }
-				}
-
-				const FPCGExValencyPatternCompiled& Pattern = Context->CompiledPatterns->Patterns[Match.PatternIndex];
-				for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
-				{
-					if (Pattern.Entries[EntryIdx].bIsActive)
-					{
-						AnnotatedNodes.Add(Match.EntryToNode[EntryIdx]);
-					}
-				}
-			}
+			MatcherOperation->CollectAnnotatedNodes(AnnotatedNodes);
 		}
 
 		// Apply matches (topology-altering - to be moved to separate nodes in Phase 4)
@@ -278,25 +259,22 @@ namespace PCGExValencyPatternReplacement
 		{
 			if (!Match.IsValid()) { continue; }
 
-			// Skip unclaimed exclusive matches
-			if (!Match.bClaimed)
-			{
-				const FPCGExValencyPatternCompiled& Pattern = Context->CompiledPatterns->Patterns[Match.PatternIndex];
-				if (Pattern.Settings.bExclusive) { continue; }
-			}
+			// Get pattern settings via matcher (handles both orbital and connector patterns)
+			const FPCGExValencyPatternSettingsCompiled* PatternSettings = MatcherOperation->GetMatchPatternSettings(Match);
+			if (!PatternSettings) { continue; }
 
-			const FPCGExValencyPatternCompiled& Pattern = Context->CompiledPatterns->Patterns[Match.PatternIndex];
-			const EPCGExPatternOutputStrategy Strategy = Pattern.Settings.OutputStrategy;
+			// Skip unclaimed exclusive matches
+			if (!Match.bClaimed && PatternSettings->bExclusive) { continue; }
 
 			// Apply output strategy
-			switch (Strategy)
+			switch (PatternSettings->OutputStrategy)
 			{
 			case EPCGExPatternOutputStrategy::Remove:
 			case EPCGExPatternOutputStrategy::Fork:
 				// Mark active nodes for removal/forking
 				for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
 				{
-					if (Pattern.Entries[EntryIdx].bIsActive)
+					if (MatcherOperation->IsMatchEntryActive(Match, EntryIdx))
 					{
 						NodesToRemove.Add(Match.EntryToNode[EntryIdx]);
 					}
@@ -309,7 +287,7 @@ namespace PCGExValencyPatternReplacement
 					bool bFirstActive = true;
 					for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
 					{
-						if (!Pattern.Entries[EntryIdx].bIsActive) { continue; }
+						if (!MatcherOperation->IsMatchEntryActive(Match, EntryIdx)) { continue; }
 
 						const int32 NodeIdx = Match.EntryToNode[EntryIdx];
 						if (bFirstActive)
@@ -328,14 +306,16 @@ namespace PCGExValencyPatternReplacement
 				break;
 
 			case EPCGExPatternOutputStrategy::Swap:
-				// Update module index to swap target
-				if (Pattern.SwapTargetModuleIndex >= 0)
 				{
-					for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
+					const int32 SwapTarget = MatcherOperation->GetMatchSwapTarget(Match);
+					if (SwapTarget >= 0)
 					{
-						if (Pattern.Entries[EntryIdx].bIsActive)
+						for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
 						{
-							SwapTargets.Add(Match.EntryToNode[EntryIdx], Pattern.SwapTargetModuleIndex);
+							if (MatcherOperation->IsMatchEntryActive(Match, EntryIdx))
+							{
+								SwapTargets.Add(Match.EntryToNode[EntryIdx], SwapTarget);
+							}
 						}
 					}
 				}
@@ -348,20 +328,20 @@ namespace PCGExValencyPatternReplacement
 		}
 	}
 
-	FTransform FProcessor::ComputeReplacementTransform(const FPCGExValencyPatternMatch& Match, const FPCGExValencyPatternCompiled& Pattern)
+	FTransform FProcessor::ComputeReplacementTransform(const FPCGExValencyPatternMatch& Match, const FPCGExValencyPatternSettingsCompiled& PatternSettings)
 	{
 		TConstPCGValueRange<FTransform> Transforms = VtxDataFacade->Source->GetIn()->GetConstTransformValueRange();
 
-		switch (Pattern.Settings.TransformMode)
+		switch (PatternSettings.TransformMode)
 		{
 		case EPCGExPatternTransformMode::Centroid:
 			{
 				FVector Centroid = FVector::ZeroVector;
 				int32 ActiveCount = 0;
 
-				for (int32 EntryIdx = 0; EntryIdx < Pattern.Entries.Num(); ++EntryIdx)
+				for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
 				{
-					if (!Pattern.Entries[EntryIdx].bIsActive) { continue; }
+					if (!MatcherOperation->IsMatchEntryActive(Match, EntryIdx)) { continue; }
 
 					const int32 NodeIdx = Match.EntryToNode[EntryIdx];
 					Centroid += Transforms[NodeIdx].GetLocation();
@@ -386,9 +366,9 @@ namespace PCGExValencyPatternReplacement
 		case EPCGExPatternTransformMode::FirstMatch:
 			{
 				// Use first active entry's node transform
-				for (int32 EntryIdx = 0; EntryIdx < Pattern.Entries.Num(); ++EntryIdx)
+				for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
 				{
-					if (Pattern.Entries[EntryIdx].bIsActive)
+					if (MatcherOperation->IsMatchEntryActive(Match, EntryIdx))
 					{
 						const int32 NodeIdx = Match.EntryToNode[EntryIdx];
 						return Transforms[NodeIdx];

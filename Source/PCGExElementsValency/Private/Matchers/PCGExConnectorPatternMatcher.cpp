@@ -9,6 +9,7 @@
 #include "Core/PCGExValencyConnectorSet.h"
 #include "Core/PCGExValencyMap.h"
 #include "Data/PCGExData.h"
+#include "Helpers/PCGExStreamingHelpers.h"
 
 #pragma region FConnectorMatcherAllocations
 
@@ -61,6 +62,102 @@ const FPCGExConnectorPatternSetCompiled* FPCGExConnectorPatternMatcherOperation:
 		return ConnAlloc->ConnectorPatterns;
 	}
 	return nullptr;
+}
+
+void FPCGExConnectorPatternMatcherOperation::Annotate(
+	const TSharedPtr<PCGExData::TBuffer<FName>>& PatternNameWriter,
+	const TSharedPtr<PCGExData::TBuffer<int32>>& MatchIndexWriter)
+{
+	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
+	if (!ConnPatterns) { return; }
+
+	int32 MatchCounter = 0;
+
+	for (const FPCGExValencyPatternMatch& Match : Matches)
+	{
+		if (!Match.IsValid()) { continue; }
+
+		// Skip unclaimed exclusive matches
+		if (!Match.bClaimed)
+		{
+			const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
+			if (Pattern.Settings.bExclusive) { continue; }
+		}
+
+		const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
+
+		// Annotate all active entries in the match
+		for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
+		{
+			const FPCGExConnectorPatternEntryCompiled& Entry = Pattern.Entries[EntryIdx];
+			if (!Entry.bIsActive) { continue; }
+
+			const int32 NodeIdx = Match.EntryToNode[EntryIdx];
+			const int32 PointIdx = GetPointIndex(NodeIdx);
+			if (PointIdx < 0) { continue; }
+
+			if (PatternNameWriter)
+			{
+				PatternNameWriter->SetValue(PointIdx, Pattern.Settings.PatternName);
+			}
+
+			if (MatchIndexWriter)
+			{
+				MatchIndexWriter->SetValue(PointIdx, MatchCounter);
+			}
+		}
+
+		++MatchCounter;
+	}
+}
+
+void FPCGExConnectorPatternMatcherOperation::CollectAnnotatedNodes(TSet<int32>& OutAnnotatedNodes) const
+{
+	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
+	if (!ConnPatterns) { return; }
+
+	for (const FPCGExValencyPatternMatch& Match : Matches)
+	{
+		if (!Match.IsValid()) { continue; }
+
+		// Skip unclaimed exclusive matches
+		if (!Match.bClaimed)
+		{
+			const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
+			if (Pattern.Settings.bExclusive) { continue; }
+		}
+
+		const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
+		for (int32 EntryIdx = 0; EntryIdx < Match.EntryToNode.Num(); ++EntryIdx)
+		{
+			if (Pattern.Entries[EntryIdx].bIsActive)
+			{
+				OutAnnotatedNodes.Add(Match.EntryToNode[EntryIdx]);
+			}
+		}
+	}
+}
+
+const FPCGExValencyPatternSettingsCompiled* FPCGExConnectorPatternMatcherOperation::GetMatchPatternSettings(const FPCGExValencyPatternMatch& Match) const
+{
+	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
+	if (!ConnPatterns || !ConnPatterns->Patterns.IsValidIndex(Match.PatternIndex)) { return nullptr; }
+	return &ConnPatterns->Patterns[Match.PatternIndex].Settings;
+}
+
+bool FPCGExConnectorPatternMatcherOperation::IsMatchEntryActive(const FPCGExValencyPatternMatch& Match, int32 EntryIndex) const
+{
+	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
+	if (!ConnPatterns || !ConnPatterns->Patterns.IsValidIndex(Match.PatternIndex)) { return false; }
+	const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
+	return Pattern.Entries.IsValidIndex(EntryIndex) && Pattern.Entries[EntryIndex].bIsActive;
+}
+
+int32 FPCGExConnectorPatternMatcherOperation::GetMatchSwapTarget(const FPCGExValencyPatternMatch& Match) const
+{
+	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
+	if (!ConnPatterns || !ConnPatterns->Patterns.IsValidIndex(Match.PatternIndex)) { return INDEX_NONE; }
+	return ConnPatterns->Patterns[Match.PatternIndex].SwapTargetModuleIndex;
 }
 
 PCGExPatternMatcher::FMatchResult FPCGExConnectorPatternMatcherOperation::Match()
@@ -445,17 +542,18 @@ void FPCGExConnectorPatternMatcherOperation::ValidateMinMatches(PCGExPatternMatc
 #pragma region UPCGExConnectorPatternMatcherFactory
 
 bool UPCGExConnectorPatternMatcherFactory::ResolveAsset(
+	FPCGExContext* InContext,
 	const FPCGExValencyBondingRulesCompiled* InCompiledRules,
-	const UPCGExValencyConnectorSet* InConnectorSet,
-	const FName& InEdgeConnectorAttrName)
+	const UPCGExValencyConnectorSet* InConnectorSet, const FName& InEdgeConnectorAttrName)
 {
 	ResolvedCompiledRules = InCompiledRules;
 	ResolvedConnectorSet = InConnectorSet;
 	ResolvedEdgeConnectorAttrName = InEdgeConnectorAttrName;
 	ResolvedMaxTypes = InConnectorSet ? InConnectorSet->Num() : 0;
 
-	// Load the connector pattern asset (safe - called on game thread during Boot/PostBoot)
-	UPCGExConnectorPatternAsset* PatternAsset = ConnectorPatternAsset.LoadSynchronous();
+	// Load the connector pattern asset
+	PCGExHelpers::LoadBlocking_AnyThread(ConnectorPatternAsset.ToSoftObjectPath(), InContext);
+	const UPCGExConnectorPatternAsset* PatternAsset = ConnectorPatternAsset.Get();
 	if (!PatternAsset)
 	{
 		ResolvedConnectorPatterns = nullptr;

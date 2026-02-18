@@ -158,7 +158,7 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 					// Check if target is a constraint node
 					if (const UPCGExConnectorPatternConstraintNode* ConstraintNode = Cast<UPCGExConnectorPatternConstraintNode>(LinkedPin->GetOwningNode()))
 					{
-						if (!SourceTypeName.IsNone())
+						if (!SourceTypeName.IsNone() && ConstraintNode->bIsActive)
 						{
 							if (ConstraintNode->ConstraintType == EPCGExPatternConstraintType::Boundary)
 							{
@@ -206,7 +206,7 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 				{
 					if (!LinkedPin || !IsValid(LinkedPin->GetOwningNode())) { continue; }
 					const UPCGExConnectorPatternConstraintNode* ConstraintNode = Cast<UPCGExConnectorPatternConstraintNode>(LinkedPin->GetOwningNode());
-					if (!ConstraintNode) { continue; }
+					if (!ConstraintNode || !ConstraintNode->bIsActive) { continue; }
 
 					if (ConstraintNode->ConstraintType == EPCGExPatternConstraintType::Boundary)
 					{

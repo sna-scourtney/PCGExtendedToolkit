@@ -71,6 +71,13 @@ public:
 
 	//~ Begin FPCGExPatternMatcherOperation Interface
 	virtual PCGExPatternMatcher::FMatchResult Match() override;
+	virtual void Annotate(
+		const TSharedPtr<PCGExData::TBuffer<FName>>& PatternNameWriter,
+		const TSharedPtr<PCGExData::TBuffer<int32>>& MatchIndexWriter) override;
+	virtual void CollectAnnotatedNodes(TSet<int32>& OutAnnotatedNodes) const override;
+	virtual const FPCGExValencyPatternSettingsCompiled* GetMatchPatternSettings(const FPCGExValencyPatternMatch& Match) const override;
+	virtual bool IsMatchEntryActive(const FPCGExValencyPatternMatch& Match, int32 EntryIndex) const override;
+	virtual int32 GetMatchSwapTarget(const FPCGExValencyPatternMatch& Match) const override;
 	//~ End FPCGExPatternMatcherOperation Interface
 
 protected:
@@ -135,15 +142,16 @@ public:
 	 * Resolve and validate the ConnectorPatternAsset.
 	 * Must be called on game thread (during Boot/PostBoot).
 	 * Sets ResolvedCompiledRules, ResolvedConnectorSet, and ResolvedConnectorPatterns.
+	 * @param InContext
 	 * @param InCompiledRules Compiled bonding rules for connector resolution
 	 * @param InConnectorSet Connector set for type index lookups
 	 * @param InEdgeConnectorAttrName Attribute name for edge connector data
 	 * @return True if asset was resolved and validated successfully
 	 */
 	bool ResolveAsset(
+		FPCGExContext* InContext,
 		const FPCGExValencyBondingRulesCompiled* InCompiledRules,
-		const UPCGExValencyConnectorSet* InConnectorSet,
-		const FName& InEdgeConnectorAttrName);
+		const UPCGExValencyConnectorSet* InConnectorSet, const FName& InEdgeConnectorAttrName);
 
 	//~ Begin UPCGExPatternMatcherFactory Interface
 	virtual TSharedPtr<FPCGExPatternMatcherOperation> CreateOperation() const override;
