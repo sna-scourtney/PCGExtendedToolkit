@@ -37,10 +37,11 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 	UPCGExConnectorPatternAsset* Asset = OwningAsset.Get();
 	if (!Asset) { return; }
 
-	// Collect all pattern nodes
+	// Collect all pattern nodes (exclude constraint nodes which inherit from pattern node)
 	TArray<UPCGExConnectorPatternGraphNode*> AllNodes;
 	for (UEdGraphNode* Node : Nodes)
 	{
+		if (Cast<UPCGExConnectorPatternConstraintNode>(Node)) { continue; }
 		if (UPCGExConnectorPatternGraphNode* PatternNode = Cast<UPCGExConnectorPatternGraphNode>(Node))
 		{
 			AllNodes.Add(PatternNode);
@@ -79,6 +80,7 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 				for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
 				{
 					if (!LinkedPin || !IsValid(LinkedPin->GetOwningNode())) { continue; }
+					if (Cast<UPCGExConnectorPatternConstraintNode>(LinkedPin->GetOwningNode())) { continue; }
 					if (UPCGExConnectorPatternGraphNode* Neighbor = Cast<UPCGExConnectorPatternGraphNode>(LinkedPin->GetOwningNode()))
 					{
 						if (!Visited.Contains(Neighbor))

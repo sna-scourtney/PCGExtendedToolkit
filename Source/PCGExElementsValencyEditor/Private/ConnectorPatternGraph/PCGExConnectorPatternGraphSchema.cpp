@@ -201,36 +201,6 @@ void UPCGExConnectorPatternGraphSchema::GetContextMenuActions(UToolMenu* Menu, U
 
 	if (ConnSet && ConnSet->ConnectorTypes.Num() > 0)
 	{
-		// --- Add Output ---
-		FToolMenuSection& AddOutputSection = Menu->AddSection("AddOutputPins", INVTEXT("Add Output"));
-		for (const FPCGExValencyConnectorEntry& ConnEntry : ConnSet->ConnectorTypes)
-		{
-			if (PatternNode->HasConnectorPin(ConnEntry.TypeId, EGPD_Output)) { continue; }
-
-			const int32 TypeId = ConnEntry.TypeId;
-			const FName TypeName = ConnEntry.ConnectorType;
-
-			AddOutputSection.AddMenuEntry(
-				FName(*FString::Printf(TEXT("AddOutPin_%d"), TypeId)),
-				FText::FromString(FString::Printf(TEXT("+ %s"), *TypeName.ToString())),
-				FText::GetEmpty(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda(
-					[PatternNode, TypeId, TypeName, PatternGraph]()
-					{
-						const FScopedTransaction Transaction(INVTEXT("Add Output Pin"));
-						PatternNode->Modify();
-						PatternNode->AddConnectorPin(TypeId, TypeName, EGPD_Output);
-						PatternNode->GetGraph()->NotifyGraphChanged();
-
-						if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))
-						{
-							MutableGraph->CompileGraphToAsset();
-						}
-					}))
-			);
-		}
-
 		// --- Add Input ---
 		FToolMenuSection& AddInputSection = Menu->AddSection("AddInputPins", INVTEXT("Add Input"));
 		for (const FPCGExValencyConnectorEntry& ConnEntry : ConnSet->ConnectorTypes)
@@ -260,46 +230,35 @@ void UPCGExConnectorPatternGraphSchema::GetContextMenuActions(UToolMenu* Menu, U
 					}))
 			);
 		}
-	}
 
-	// --- Remove Output ---
-	{
-		bool bHasOutputPins = false;
-		for (const FPCGExConnectorPinEntry& PinEntry : PatternNode->ConnectorPins)
+		// --- Add Output ---
+		FToolMenuSection& AddOutputSection = Menu->AddSection("AddOutputPins", INVTEXT("Add Output"));
+		for (const FPCGExValencyConnectorEntry& ConnEntry : ConnSet->ConnectorTypes)
 		{
-			if (PinEntry.bOutput) { bHasOutputPins = true; break; }
-		}
+			if (PatternNode->HasConnectorPin(ConnEntry.TypeId, EGPD_Output)) { continue; }
 
-		if (bHasOutputPins)
-		{
-			FToolMenuSection& RemoveOutputSection = Menu->AddSection("RemoveOutputPins", INVTEXT("Remove Output"));
-			for (const FPCGExConnectorPinEntry& PinEntry : PatternNode->ConnectorPins)
-			{
-				if (!PinEntry.bOutput) { continue; }
+			const int32 TypeId = ConnEntry.TypeId;
+			const FName TypeName = ConnEntry.ConnectorType;
 
-				const int32 TypeId = PinEntry.StoredTypeId;
-				const FName TypeName = PinEntry.StoredTypeName;
+			AddOutputSection.AddMenuEntry(
+				FName(*FString::Printf(TEXT("AddOutPin_%d"), TypeId)),
+				FText::FromString(FString::Printf(TEXT("+ %s"), *TypeName.ToString())),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda(
+					[PatternNode, TypeId, TypeName, PatternGraph]()
+					{
+						const FScopedTransaction Transaction(INVTEXT("Add Output Pin"));
+						PatternNode->Modify();
+						PatternNode->AddConnectorPin(TypeId, TypeName, EGPD_Output);
+						PatternNode->GetGraph()->NotifyGraphChanged();
 
-				RemoveOutputSection.AddMenuEntry(
-					FName(*FString::Printf(TEXT("RemoveOutPin_%d"), TypeId)),
-					FText::FromString(FString::Printf(TEXT("- %s"), *TypeName.ToString())),
-					FText::GetEmpty(),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda(
-						[PatternNode, TypeId, PatternGraph]()
+						if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))
 						{
-							const FScopedTransaction Transaction(INVTEXT("Remove Output Pin"));
-							PatternNode->Modify();
-							PatternNode->RemoveConnectorPin(TypeId, EGPD_Output);
-							PatternNode->GetGraph()->NotifyGraphChanged();
-
-							if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))
-							{
-								MutableGraph->CompileGraphToAsset();
-							}
-						}))
-				);
-			}
+							MutableGraph->CompileGraphToAsset();
+						}
+					}))
+			);
 		}
 	}
 
@@ -332,6 +291,47 @@ void UPCGExConnectorPatternGraphSchema::GetContextMenuActions(UToolMenu* Menu, U
 							const FScopedTransaction Transaction(INVTEXT("Remove Input Pin"));
 							PatternNode->Modify();
 							PatternNode->RemoveConnectorPin(TypeId, EGPD_Input);
+							PatternNode->GetGraph()->NotifyGraphChanged();
+
+							if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))
+							{
+								MutableGraph->CompileGraphToAsset();
+							}
+						}))
+				);
+			}
+		}
+	}
+
+	// --- Remove Output ---
+	{
+		bool bHasOutputPins = false;
+		for (const FPCGExConnectorPinEntry& PinEntry : PatternNode->ConnectorPins)
+		{
+			if (PinEntry.bOutput) { bHasOutputPins = true; break; }
+		}
+
+		if (bHasOutputPins)
+		{
+			FToolMenuSection& RemoveOutputSection = Menu->AddSection("RemoveOutputPins", INVTEXT("Remove Output"));
+			for (const FPCGExConnectorPinEntry& PinEntry : PatternNode->ConnectorPins)
+			{
+				if (!PinEntry.bOutput) { continue; }
+
+				const int32 TypeId = PinEntry.StoredTypeId;
+				const FName TypeName = PinEntry.StoredTypeName;
+
+				RemoveOutputSection.AddMenuEntry(
+					FName(*FString::Printf(TEXT("RemoveOutPin_%d"), TypeId)),
+					FText::FromString(FString::Printf(TEXT("- %s"), *TypeName.ToString())),
+					FText::GetEmpty(),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda(
+						[PatternNode, TypeId, PatternGraph]()
+						{
+							const FScopedTransaction Transaction(INVTEXT("Remove Output Pin"));
+							PatternNode->Modify();
+							PatternNode->RemoveConnectorPin(TypeId, EGPD_Output);
 							PatternNode->GetGraph()->NotifyGraphChanged();
 
 							if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))

@@ -410,6 +410,16 @@ void FPCGExConnectorPatternEditor::PasteNodes()
 	TSet<UEdGraphNode*> PastedNodes;
 	FEdGraphUtilities::ImportNodesFromText(PatternGraph, ClipboardContent, PastedNodes);
 
+	// Regenerate GUIDs so SGraphEditor doesn't confuse pasted nodes with originals
+	for (UEdGraphNode* Node : PastedNodes)
+	{
+		Node->CreateNewGuid();
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			Pin->PinId = FGuid::NewGuid();
+		}
+	}
+
 	// Compute center of pasted nodes
 	FVector2D AvgPos = FVector2D::ZeroVector;
 	for (const UEdGraphNode* Node : PastedNodes)

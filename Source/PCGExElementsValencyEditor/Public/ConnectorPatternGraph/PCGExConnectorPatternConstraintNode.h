@@ -4,11 +4,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EdGraph/EdGraphNode.h"
+#include "PCGExConnectorPatternGraphNode.h"
 
 #include "PCGExConnectorPatternConstraintNode.generated.h"
-
-class UPCGExConnectorPatternGraph;
 
 /** Constraint type for pattern constraint nodes */
 UENUM()
@@ -23,10 +21,10 @@ enum class EPCGExPatternConstraintType : uint8
 /**
  * Constraint marker node for the pattern graph.
  * Wiring a pattern entry's typed pin to this node's input applies the constraint to that type.
- * Acts as a "null cage" endpoint — represents the absence of a neighbor.
+ * Inherits full connector pin management from pattern graph node.
  */
-UCLASS()
-class PCGEXELEMENTSVALENCYEDITOR_API UPCGExConnectorPatternConstraintNode : public UEdGraphNode
+UCLASS(HideCategories=("Entry", "Pattern"))
+class PCGEXELEMENTSVALENCYEDITOR_API UPCGExConnectorPatternConstraintNode : public UPCGExConnectorPatternGraphNode
 {
 	GENERATED_BODY()
 
@@ -36,10 +34,8 @@ public:
 	EPCGExPatternConstraintType ConstraintType = EPCGExPatternConstraintType::Boundary;
 
 	//~ UEdGraphNode interface
-	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual bool CanUserDeleteNode() const override { return true; }
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

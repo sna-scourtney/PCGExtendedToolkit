@@ -364,15 +364,6 @@ void UPCGExConnectorPatternGraphNode::PostEditChangeProperty(FPropertyChangedEve
 
 #pragma region UPCGExConnectorPatternConstraintNode
 
-void UPCGExConnectorPatternConstraintNode::AllocateDefaultPins()
-{
-	FEdGraphPinType AnyPinType;
-	AnyPinType.PinCategory = UPCGExConnectorPatternGraphNode::AnyPinCategory;
-
-	CreatePin(EGPD_Input, AnyPinType, TEXT("ConstraintIn"))->PinFriendlyName = INVTEXT("In");
-	CreatePin(EGPD_Output, AnyPinType, TEXT("ConstraintOut"))->PinFriendlyName = INVTEXT("Out");
-}
-
 FText UPCGExConnectorPatternConstraintNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	switch (ConstraintType)
