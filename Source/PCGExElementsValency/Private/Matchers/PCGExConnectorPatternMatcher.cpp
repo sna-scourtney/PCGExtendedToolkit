@@ -146,7 +146,10 @@ void FPCGExConnectorPatternMatcherOperation::FindMatchesForPattern(
 
 	for (int32 NodeIdx = 0; NodeIdx < NumNodes; ++NodeIdx)
 	{
-		if (MaxMatches >= 0 && PatternMatchCounts[PatternIndex] >= MaxMatches)
+		// For non-exclusive (additive) patterns, enforce MaxMatches during collection.
+		// For exclusive patterns, collect all candidates — MaxMatches is enforced during
+		// claiming so overlap-discarded matches don't consume slots.
+		if (!Pattern.Settings.bExclusive && MaxMatches >= 0 && PatternMatchCounts[PatternIndex] >= MaxMatches)
 		{
 			break;
 		}
@@ -361,10 +364,18 @@ void FPCGExConnectorPatternMatcherOperation::ClaimMatchedNodes()
 	const FPCGExConnectorPatternSetCompiled* ConnPatterns = GetConnectorPatterns();
 	if (!ConnPatterns) { return; }
 
+	// Track claimed count per pattern to enforce MaxMatches on effective (non-discarded) matches
+	TMap<int32, int32> ClaimedCounts;
+
 	for (FPCGExValencyPatternMatch& Match : Matches)
 	{
 		const FPCGExConnectorPatternCompiled& Pattern = ConnPatterns->Patterns[Match.PatternIndex];
 		if (!Pattern.Settings.bExclusive) { continue; }
+
+		// Enforce MaxMatches on claimed count (not candidate count)
+		const int32 MaxMatches = Pattern.Settings.MaxMatches;
+		int32& ClaimedCount = ClaimedCounts.FindOrAdd(Match.PatternIndex, 0);
+		if (MaxMatches >= 0 && ClaimedCount >= MaxMatches) { continue; }
 
 		bool bCanClaim = true;
 		for (int32 EntryIdx = 0; EntryIdx < Pattern.Entries.Num(); ++EntryIdx)
@@ -382,6 +393,8 @@ void FPCGExConnectorPatternMatcherOperation::ClaimMatchedNodes()
 		if (bCanClaim)
 		{
 			Match.bClaimed = true;
+			ClaimedCount++;
+
 			for (int32 EntryIdx = 0; EntryIdx < Pattern.Entries.Num(); ++EntryIdx)
 			{
 				if (!Pattern.Entries[EntryIdx].bIsActive) { continue; }
