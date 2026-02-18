@@ -9,6 +9,7 @@
 #include "Data/PCGExPointIO.h"
 #include "Data/Utils/PCGExDataPreloader.h"
 #include "Matchers/PCGExDefaultPatternMatcher.h"
+#include "Matchers/PCGExConnectorPatternMatcher.h"
 
 #define LOCTEXT_NAMESPACE "PCGExValencyPatternReplacement"
 #define PCGEX_NAMESPACE ValencyPatternReplacement
@@ -92,6 +93,25 @@ bool FPCGExValencyPatternReplacementElement::PostBoot(FPCGExContext* InContext) 
 	if (Settings->Matcher)
 	{
 		Context->MatcherFactory = PCGEX_OPERATION_REGISTER_C(Context, UPCGExPatternMatcherFactory, Settings->Matcher, NAME_None);
+
+		// If this is a connector pattern matcher, resolve its asset on game thread
+		if (auto* ConnFactory = Cast<UPCGExConnectorPatternMatcherFactory>(const_cast<UPCGExPatternMatcherFactory*>(Context->MatcherFactory.Get())))
+		{
+			if (Context->ConnectorSet)
+			{
+				const FName EdgeConnectorAttrName = Context->ConnectorSet->GetConnectorAttributeName();
+				if (!ConnFactory->ResolveAsset(&CompiledData, Context->ConnectorSet, EdgeConnectorAttrName))
+				{
+					PCGE_LOG_C(Error, GraphAndLog, InContext, FTEXT("Connector Pattern Matcher: failed to resolve ConnectorPatternAsset."));
+					return false;
+				}
+			}
+			else
+			{
+				PCGE_LOG_C(Error, GraphAndLog, InContext, FTEXT("Connector Pattern Matcher requires a ConnectorSet in BondingRules."));
+				return false;
+			}
+		}
 	}
 
 	if (!Context->MatcherFactory && !Settings->bQuietNoMatcher)
@@ -148,6 +168,12 @@ namespace PCGExValencyPatternReplacement
 		if (!OrbitalCache)
 		{
 			return false;
+		}
+
+		// Finalize matcher allocations with cluster and edge data (e.g., build ConnectorCache)
+		if (MatcherAllocations)
+		{
+			MatcherAllocations->FinalizeAllocations(Cluster, EdgeDataFacade);
 		}
 
 		// Run pattern matching
@@ -510,6 +536,12 @@ namespace PCGExValencyPatternReplacement
 		if (Context && Context->MatcherFactory)
 		{
 			MatcherAllocations = Context->MatcherFactory->CreateAllocations(VtxDataFacade);
+
+			// Pass ValencyEntry reader to matcher allocations if applicable
+			if (MatcherAllocations && ValencyEntryReader)
+			{
+				MatcherAllocations->SetValencyEntryReader(ValencyEntryReader);
+			}
 		}
 
 		TBatch::OnProcessingPreparationComplete();

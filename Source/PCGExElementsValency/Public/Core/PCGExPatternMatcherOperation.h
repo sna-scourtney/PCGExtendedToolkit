@@ -50,6 +50,23 @@ namespace PCGExPatternMatcher
 	struct PCGEXELEMENTSVALENCY_API FMatcherAllocations : TSharedFromThis<FMatcherAllocations>
 	{
 		virtual ~FMatcherAllocations() = default;
+
+		/**
+		 * Finalize allocations with cluster and edge data.
+		 * Called after cluster construction, before matching.
+		 * Override to build caches that require edge topology (e.g., ConnectorCache).
+		 * @param Cluster The constructed cluster
+		 * @param EdgeFacade Edge data facade
+		 */
+		virtual void FinalizeAllocations(
+			const TSharedPtr<PCGExClusters::FCluster>& Cluster,
+			const TSharedRef<PCGExData::FFacade>& EdgeFacade) {}
+
+		/**
+		 * Set the ValencyEntry reader if this allocation type needs it.
+		 * Default implementation does nothing. Override in derived types.
+		 */
+		virtual void SetValencyEntryReader(const TSharedPtr<PCGExData::TBuffer<int64>>& InReader) {}
 	};
 
 	/**
