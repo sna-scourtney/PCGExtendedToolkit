@@ -127,6 +127,9 @@ public:
 	/** Check if this node has any pin (input or output) for the given TypeId */
 	bool HasAnyConnectorPin(int32 TypeId) const;
 
+	/** Remove all connector pins whose TypeId is no longer in the ConnectorSet. Returns true if any were removed. */
+	bool RemoveStalePins(const UPCGExValencyConnectorSet* InConnectorSet);
+
 	/** Get the owning pattern graph */
 	UPCGExConnectorPatternGraph* GetPatternGraph() const;
 

@@ -163,35 +163,50 @@ bool UPCGExConnectorPatternAsset::Compile(TArray<FText>* OutErrors)
 				for (const FPCGExConnectorTypePairAuthored& AuthPair : AuthAdj.TypePairs)
 				{
 					FPCGExConnectorTypePair CompiledPair;
-					CompiledPair.SourceTypeIndex = ConnectorSet->FindConnectorTypeIndex(AuthPair.SourceType);
-					CompiledPair.TargetTypeIndex = ConnectorSet->FindConnectorTypeIndex(AuthPair.TargetType);
 
-					if (CompiledPair.SourceTypeIndex < 0)
+					// NAME_None = wildcard ("Any" pin in the graph editor)
+					if (AuthPair.SourceType.IsNone())
 					{
-						if (OutErrors)
+						CompiledPair.SourceTypeIndex = FPCGExConnectorTypePair::AnyTypeIndex;
+					}
+					else
+					{
+						CompiledPair.SourceTypeIndex = ConnectorSet->FindConnectorTypeIndex(AuthPair.SourceType);
+						if (CompiledPair.SourceTypeIndex < 0)
 						{
-							OutErrors->Add(FText::Format(
-								FText::FromString(TEXT("Pattern '{0}', entry {1}: source connector type '{2}' not found.")),
-								FText::FromName(Authored.PatternName),
-								FText::AsNumber(EntryIdx),
-								FText::FromName(AuthPair.SourceType)));
+							if (OutErrors)
+							{
+								OutErrors->Add(FText::Format(
+									FText::FromString(TEXT("Pattern '{0}', entry {1}: source connector type '{2}' not found.")),
+									FText::FromName(Authored.PatternName),
+									FText::AsNumber(EntryIdx),
+									FText::FromName(AuthPair.SourceType)));
+							}
+							bPatternValid = false;
+							continue;
 						}
-						bPatternValid = false;
-						continue;
 					}
 
-					if (CompiledPair.TargetTypeIndex < 0)
+					if (AuthPair.TargetType.IsNone())
 					{
-						if (OutErrors)
+						CompiledPair.TargetTypeIndex = FPCGExConnectorTypePair::AnyTypeIndex;
+					}
+					else
+					{
+						CompiledPair.TargetTypeIndex = ConnectorSet->FindConnectorTypeIndex(AuthPair.TargetType);
+						if (CompiledPair.TargetTypeIndex < 0)
 						{
-							OutErrors->Add(FText::Format(
-								FText::FromString(TEXT("Pattern '{0}', entry {1}: target connector type '{2}' not found.")),
-								FText::FromName(Authored.PatternName),
-								FText::AsNumber(EntryIdx),
-								FText::FromName(AuthPair.TargetType)));
+							if (OutErrors)
+							{
+								OutErrors->Add(FText::Format(
+									FText::FromString(TEXT("Pattern '{0}', entry {1}: target connector type '{2}' not found.")),
+									FText::FromName(Authored.PatternName),
+									FText::AsNumber(EntryIdx),
+									FText::FromName(AuthPair.TargetType)));
+							}
+							bPatternValid = false;
+							continue;
 						}
-						bPatternValid = false;
-						continue;
 					}
 
 					CompiledAdj.TypePairs.Add(CompiledPair);

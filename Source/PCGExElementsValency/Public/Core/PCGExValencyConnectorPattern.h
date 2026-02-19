@@ -18,15 +18,25 @@ struct PCGEXELEMENTSVALENCY_API FPCGExConnectorTypePair
 {
 	GENERATED_BODY()
 
-	/** Connector type index on the source (current) node */
+	/** Wildcard type index: matches any connector type */
+	static constexpr int32 AnyTypeIndex = -2;
+
+	/** Connector type index on the source (current) node. AnyTypeIndex = wildcard. */
 	UPROPERTY()
 	int32 SourceTypeIndex = INDEX_NONE;
 
-	/** Connector type index on the target (adjacent) node */
+	/** Connector type index on the target (adjacent) node. AnyTypeIndex = wildcard. */
 	UPROPERTY()
 	int32 TargetTypeIndex = INDEX_NONE;
 
-	bool IsValid() const { return SourceTypeIndex >= 0 && TargetTypeIndex >= 0; }
+	bool IsValid() const
+	{
+		return (SourceTypeIndex >= 0 || SourceTypeIndex == AnyTypeIndex) &&
+		       (TargetTypeIndex >= 0 || TargetTypeIndex == AnyTypeIndex);
+	}
+
+	bool IsSourceWildcard() const { return SourceTypeIndex == AnyTypeIndex; }
+	bool IsTargetWildcard() const { return TargetTypeIndex == AnyTypeIndex; }
 
 	bool operator==(const FPCGExConnectorTypePair& Other) const
 	{

@@ -333,6 +333,8 @@ bool FPCGExConnectorPatternMatcherOperation::MatchEntryRecursive(
 
 	if (!Cache) { return false; }
 
+	const int32 CacheMaxTypes = Cache->GetMaxTypes();
+
 	// Process all adjacencies from this entry
 	for (const FPCGExConnectorPatternAdjacency& Adj : Entry.Adjacencies)
 	{
@@ -347,12 +349,19 @@ bool FPCGExConnectorPatternMatcherOperation::MatchEntryRecursive(
 			bool bConnected = false;
 			for (const FPCGExConnectorTypePair& Pair : Adj.TypePairs)
 			{
-				TConstArrayView<int32> Neighbors = Cache->GetNeighborsAtType(CurrentNode, Pair.SourceTypeIndex);
-				if (Neighbors.Contains(ExistingNode))
+				// Source type range: wildcard iterates all types, specific uses one
+				const int32 FirstSrc = Pair.IsSourceWildcard() ? 0 : Pair.SourceTypeIndex;
+				const int32 LastSrc = Pair.IsSourceWildcard() ? CacheMaxTypes - 1 : Pair.SourceTypeIndex;
+
+				for (int32 SrcType = FirstSrc; SrcType <= LastSrc; ++SrcType)
 				{
-					bConnected = true;
-					break;
+					if (Cache->GetNeighborsAtType(CurrentNode, SrcType).Contains(ExistingNode))
+					{
+						bConnected = true;
+						break;
+					}
 				}
+				if (bConnected) { break; }
 			}
 
 			if (!bConnected) { return false; }
@@ -365,48 +374,67 @@ bool FPCGExConnectorPatternMatcherOperation::MatchEntryRecursive(
 
 		for (const FPCGExConnectorTypePair& Pair : Adj.TypePairs)
 		{
-			TConstArrayView<int32> Neighbors = Cache->GetNeighborsAtType(CurrentNode, Pair.SourceTypeIndex);
+			const int32 FirstSrc = Pair.IsSourceWildcard() ? 0 : Pair.SourceTypeIndex;
+			const int32 LastSrc = Pair.IsSourceWildcard() ? CacheMaxTypes - 1 : Pair.SourceTypeIndex;
 
-			for (const int32 NeighborNode : Neighbors)
+			for (int32 SrcType = FirstSrc; SrcType <= LastSrc; ++SrcType)
 			{
-				// Skip already used nodes
-				if (UsedNodes.Contains(NeighborNode)) { continue; }
+				TConstArrayView<int32> Neighbors = Cache->GetNeighborsAtType(CurrentNode, SrcType);
 
-				// Check if the neighbor's module matches the target entry
-				const int32 NeighborModule = GetModuleIndex(NeighborNode);
-				if (!TargetEntry.MatchesModule(NeighborModule)) { continue; }
-
-				// Check boundary constraints for target entry
-				if (TargetEntry.BoundaryConnectorMask != 0)
+				for (const int32 NeighborNode : Neighbors)
 				{
-					const int64 NeighborTypeMask = Cache->GetConnectorTypeMask(NeighborNode);
-					if ((NeighborTypeMask & TargetEntry.BoundaryConnectorMask) != 0) { continue; }
+					// Skip already used nodes
+					if (UsedNodes.Contains(NeighborNode)) { continue; }
+
+					// Check if the neighbor's module matches the target entry
+					const int32 NeighborModule = GetModuleIndex(NeighborNode);
+					if (!TargetEntry.MatchesModule(NeighborModule)) { continue; }
+
+					// Check boundary constraints for target entry
+					if (TargetEntry.BoundaryConnectorMask != 0)
+					{
+						const int64 NeighborTypeMask = Cache->GetConnectorTypeMask(NeighborNode);
+						if ((NeighborTypeMask & TargetEntry.BoundaryConnectorMask) != 0) { continue; }
+					}
+
+					// Check wildcard constraints for target entry
+					if (TargetEntry.WildcardConnectorMask != 0)
+					{
+						const int64 NeighborTypeMask = Cache->GetConnectorTypeMask(NeighborNode);
+						if ((NeighborTypeMask & TargetEntry.WildcardConnectorMask) != TargetEntry.WildcardConnectorMask) { continue; }
+					}
+
+					// Verify reverse: neighbor connects back to current node via target type
+					const int32 FirstTgt = Pair.IsTargetWildcard() ? 0 : Pair.TargetTypeIndex;
+					const int32 LastTgt = Pair.IsTargetWildcard() ? CacheMaxTypes - 1 : Pair.TargetTypeIndex;
+
+					bool bReverseConnected = false;
+					for (int32 TgtType = FirstTgt; TgtType <= LastTgt; ++TgtType)
+					{
+						if (Cache->GetNeighborsAtType(NeighborNode, TgtType).Contains(CurrentNode))
+						{
+							bReverseConnected = true;
+							break;
+						}
+					}
+					if (!bReverseConnected) { continue; }
+
+					// Match found - assign and recurse
+					EntryToNode[TargetEntryIdx] = NeighborNode;
+					UsedNodes.Add(NeighborNode);
+
+					if (MatchEntryRecursive(Pattern, TargetEntryIdx, EntryToNode, UsedNodes))
+					{
+						bFoundMatch = true;
+						break;
+					}
+
+					// Backtrack
+					EntryToNode[TargetEntryIdx] = -1;
+					UsedNodes.Remove(NeighborNode);
 				}
 
-				// Check wildcard constraints for target entry
-				if (TargetEntry.WildcardConnectorMask != 0)
-				{
-					const int64 NeighborTypeMask = Cache->GetConnectorTypeMask(NeighborNode);
-					if ((NeighborTypeMask & TargetEntry.WildcardConnectorMask) != TargetEntry.WildcardConnectorMask) { continue; }
-				}
-
-				// Verify reverse: neighbor has TargetTypeIndex connecting back to current node
-				TConstArrayView<int32> ReverseNeighbors = Cache->GetNeighborsAtType(NeighborNode, Pair.TargetTypeIndex);
-				if (!ReverseNeighbors.Contains(CurrentNode)) { continue; }
-
-				// Match found - assign and recurse
-				EntryToNode[TargetEntryIdx] = NeighborNode;
-				UsedNodes.Add(NeighborNode);
-
-				if (MatchEntryRecursive(Pattern, TargetEntryIdx, EntryToNode, UsedNodes))
-				{
-					bFoundMatch = true;
-					break;
-				}
-
-				// Backtrack
-				EntryToNode[TargetEntryIdx] = -1;
-				UsedNodes.Remove(NeighborNode);
+				if (bFoundMatch) { break; }
 			}
 
 			if (bFoundMatch) { break; }

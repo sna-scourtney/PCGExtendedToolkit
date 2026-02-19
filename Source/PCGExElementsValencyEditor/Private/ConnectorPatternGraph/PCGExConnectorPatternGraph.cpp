@@ -7,7 +7,12 @@
 #include "ConnectorPatternGraph/PCGExConnectorPatternGraphNode.h"
 #include "Core/PCGExConnectorPatternAsset.h"
 #include "Core/PCGExValencyConnectorSet.h"
+#include "Volumes/ValencyContextVolume.h"
 #include "EdGraph/EdGraphPin.h"
+#include "PCGComponent.h"
+#include "Subsystems/PCGSubsystem.h"
+#include "EngineUtils.h"
+#include "Editor.h"
 
 #pragma region UPCGExConnectorPatternGraph
 
@@ -230,8 +235,55 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ConnectorPattern Compile: %s"), *Error.ToString());
 	}
-	
+
 	Asset->MarkPackageDirty();
+}
+
+void UPCGExConnectorPatternGraph::RefreshPCGComponents()
+{
+	if (!GEditor) { return; }
+
+	// Collect unique PCG actors from all ValencyContextVolumes in editor worlds
+	TSet<AActor*> PCGActors;
+
+	for (const FWorldContext& WorldContext : GEditor->GetWorldContexts())
+	{
+		UWorld* World = WorldContext.World();
+		if (!World || World->WorldType != EWorldType::Editor) { continue; }
+
+		for (TActorIterator<AValencyContextVolume> It(World); It; ++It)
+		{
+			for (const TObjectPtr<AActor>& ActorPtr : It->PCGActorsToRegenerate)
+			{
+				if (AActor* Actor = ActorPtr.Get())
+				{
+					PCGActors.Add(Actor);
+				}
+			}
+		}
+	}
+
+	if (PCGActors.IsEmpty()) { return; }
+
+	// Flush PCG cache so stale compiled data is discarded
+	if (UPCGSubsystem* Subsystem = UPCGSubsystem::GetActiveEditorInstance())
+	{
+		Subsystem->FlushCache();
+	}
+
+	// Regenerate only the referenced PCG components
+	for (AActor* Actor : PCGActors)
+	{
+		TArray<UPCGComponent*> PCGComponents;
+		Actor->GetComponents<UPCGComponent>(PCGComponents);
+
+		for (UPCGComponent* PCGComponent : PCGComponents)
+		{
+			if (!PCGComponent) { continue; }
+			PCGComponent->Cleanup(true);
+			PCGComponent->Generate(true);
+		}
+	}
 }
 
 void UPCGExConnectorPatternGraph::BuildGraphFromAsset()

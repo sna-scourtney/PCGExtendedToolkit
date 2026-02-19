@@ -343,6 +343,46 @@ void UPCGExConnectorPatternGraphSchema::GetContextMenuActions(UToolMenu* Menu, U
 			}
 		}
 	}
+
+	// --- Cleanup: Remove Stale Pins ---
+	if (ConnSet && PatternNode->ConnectorPins.Num() > 0)
+	{
+		// Check if any pins reference types no longer in ConnectorSet
+		bool bHasStalePins = false;
+		for (const FPCGExConnectorPinEntry& PinEntry : PatternNode->ConnectorPins)
+		{
+			if (ConnSet->FindConnectorTypeIndexById(PinEntry.StoredTypeId) == INDEX_NONE)
+			{
+				bHasStalePins = true;
+				break;
+			}
+		}
+
+		if (bHasStalePins)
+		{
+			FToolMenuSection& CleanupSection = Menu->AddSection("PinCleanup", INVTEXT("Cleanup"));
+			CleanupSection.AddMenuEntry(
+				"RemoveStalePins",
+				INVTEXT("Remove Stale Pins"),
+				INVTEXT("Remove all connector pins whose type no longer exists in the ConnectorSet"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda(
+					[PatternNode, ConnSet, PatternGraph]()
+					{
+						const FScopedTransaction Transaction(INVTEXT("Remove Stale Pins"));
+						PatternNode->Modify();
+						if (PatternNode->RemoveStalePins(ConnSet))
+						{
+							PatternNode->GetGraph()->NotifyGraphChanged();
+							if (UPCGExConnectorPatternGraph* MutableGraph = const_cast<UPCGExConnectorPatternGraph*>(PatternGraph))
+							{
+								MutableGraph->CompileGraphToAsset();
+							}
+						}
+					}))
+			);
+		}
+	}
 }
 
 const FPinConnectionResponse UPCGExConnectorPatternGraphSchema::CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const

@@ -33,6 +33,9 @@ public:
 	/** Rebuild all node pins from current ConnectorSet (call when ConnectorSet changes) */
 	void RebuildAllNodePins();
 
+	/** Flush PCG cache and regenerate all PCG components in editor worlds */
+	void RefreshPCGComponents();
+
 	/** Get the ConnectorSet from the owning asset (may be null) */
 	UPCGExValencyConnectorSet* GetConnectorSet() const;
 };

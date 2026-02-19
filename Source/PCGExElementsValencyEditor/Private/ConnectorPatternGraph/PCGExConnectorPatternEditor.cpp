@@ -231,7 +231,7 @@ void FPCGExConnectorPatternEditor::BuildEditorToolbar(FToolBarBuilder& ToolbarBu
 {
 	ToolbarBuilder.BeginSection("PatternActions");
 	{
-		// Compile button
+		// Compile button (also triggers PCG regeneration)
 		ToolbarBuilder.AddToolBarButton(
 			FUIAction(
 				FExecuteAction::CreateLambda(
@@ -240,12 +240,13 @@ void FPCGExConnectorPatternEditor::BuildEditorToolbar(FToolBarBuilder& ToolbarBu
 						if (PatternGraph)
 						{
 							PatternGraph->CompileGraphToAsset();
+							PatternGraph->RefreshPCGComponents();
 						}
 					})
 			),
 			NAME_None,
 			FText::FromString(TEXT("Compile")),
-			INVTEXT("Recompile all patterns from graph topology"),
+			INVTEXT("Recompile all patterns from graph topology and regenerate PCG"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "AssetEditor.Apply")
 		);
 
@@ -512,10 +513,11 @@ void FPCGExConnectorPatternEditor::OnCreateComment()
 
 void FPCGExConnectorPatternEditor::SaveAsset_Execute()
 {
-	// Ensure compiled before save
+	// Ensure compiled before save, then regenerate PCG
 	if (PatternGraph)
 	{
 		PatternGraph->CompileGraphToAsset();
+		PatternGraph->RefreshPCGComponents();
 	}
 	FAssetEditorToolkit::SaveAsset_Execute();
 }

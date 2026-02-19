@@ -232,10 +232,21 @@ void UPCGExConnectorPatternGraphNode::RemoveConnectorPin(int32 TypeId, EEdGraphP
 
 	FPCGExConnectorPinEntry& Entry = ConnectorPins[EntryIdx];
 
+	// Find pin by TypeId (resilient to name changes) rather than by constructed name
+	auto FindPinByTypeId = [this](int32 InTypeId, EEdGraphPinDirection InDir) -> UEdGraphPin*
+	{
+		for (UEdGraphPin* Pin : Pins)
+		{
+			if (Pin->Direction != InDir) { continue; }
+			if (Pin->PinType.PinCategory != ConnectorPinCategory) { continue; }
+			if (GetTypeIdFromPinName(Pin->PinName) == InTypeId) { return Pin; }
+		}
+		return nullptr;
+	};
+
 	if (Direction == EGPD_Output && Entry.bOutput)
 	{
-		const FName OutName = MakeOutputPinName(Entry.StoredTypeId, Entry.StoredTypeName);
-		if (UEdGraphPin* OutPin = FindPin(OutName, EGPD_Output))
+		if (UEdGraphPin* OutPin = FindPinByTypeId(TypeId, EGPD_Output))
 		{
 			OutPin->BreakAllPinLinks();
 			RemovePin(OutPin);
@@ -244,8 +255,7 @@ void UPCGExConnectorPatternGraphNode::RemoveConnectorPin(int32 TypeId, EEdGraphP
 	}
 	else if (Direction == EGPD_Input && Entry.bInput)
 	{
-		const FName InName = MakeInputPinName(Entry.StoredTypeId, Entry.StoredTypeName);
-		if (UEdGraphPin* InPin = FindPin(InName, EGPD_Input))
+		if (UEdGraphPin* InPin = FindPinByTypeId(TypeId, EGPD_Input))
 		{
 			InPin->BreakAllPinLinks();
 			RemovePin(InPin);
@@ -272,7 +282,9 @@ void UPCGExConnectorPatternGraphNode::ResolveConnectorPins(const UPCGExValencyCo
 			PinEntry.StoredTypeName = InConnectorSet->ConnectorTypes[TypeIdx].ConnectorType;
 		}
 
-		// Update all connector pins (name, color ref)
+		// Update all connector pins (display name, color ref)
+		const FText DisplayName = FText::FromName(PinEntry.StoredTypeName);
+
 		for (UEdGraphPin* Pin : Pins)
 		{
 			if (Pin->PinType.PinCategory != ConnectorPinCategory) { continue; }
@@ -282,9 +294,35 @@ void UPCGExConnectorPatternGraphNode::ResolveConnectorPins(const UPCGExValencyCo
 			{
 				Pin->PinType.PinSubCategory = PinEntry.StoredTypeName;
 				Pin->PinType.PinSubCategoryObject = const_cast<UPCGExValencyConnectorSet*>(InConnectorSet);
+				Pin->PinFriendlyName = DisplayName;
 			}
 		}
 	}
+}
+
+bool UPCGExConnectorPatternGraphNode::RemoveStalePins(const UPCGExValencyConnectorSet* InConnectorSet)
+{
+	if (!InConnectorSet) { return false; }
+
+	TArray<int32> StaleTypeIds;
+	for (const FPCGExConnectorPinEntry& Entry : ConnectorPins)
+	{
+		if (InConnectorSet->FindConnectorTypeIndexById(Entry.StoredTypeId) == INDEX_NONE)
+		{
+			StaleTypeIds.Add(Entry.StoredTypeId);
+		}
+	}
+
+	if (StaleTypeIds.IsEmpty()) { return false; }
+
+	for (const int32 TypeId : StaleTypeIds)
+	{
+		// Remove both directions
+		RemoveConnectorPin(TypeId, EGPD_Output);
+		RemoveConnectorPin(TypeId, EGPD_Input);
+	}
+
+	return true;
 }
 
 bool UPCGExConnectorPatternGraphNode::HasConnectorPin(int32 TypeId, EEdGraphPinDirection Direction) const
