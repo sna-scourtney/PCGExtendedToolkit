@@ -24,6 +24,10 @@ class PCGEXELEMENTSVALENCYEDITOR_API UPCGExConnectorPatternHeaderNode : public U
 public:
 	//~ Pattern-level settings
 
+	/** If false, this pattern is excluded from compilation */
+	UPROPERTY(EditAnywhere, Category = "Pattern")
+	bool bEnabled = true;
+
 	/** Pattern name for identification and filtering */
 	UPROPERTY(EditAnywhere, Category = "Pattern")
 	FName PatternName;

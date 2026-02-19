@@ -22,6 +22,28 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Modules/ModuleManager.h"
 
+#define LOCTEXT_NAMESPACE "PCGExConnectorPatternEditor"
+
+class FPCGExConnectorPatternCommands : public TCommands<FPCGExConnectorPatternCommands>
+{
+public:
+	FPCGExConnectorPatternCommands()
+		: TCommands<FPCGExConnectorPatternCommands>(
+			TEXT("PCGExConnectorPatternEditor"),
+			INVTEXT("Connector Pattern Editor"),
+			NAME_None,
+			FAppStyle::GetAppStyleSetName())
+	{
+	}
+
+	virtual void RegisterCommands() override
+	{
+		UI_COMMAND(TogglePatternEnabled, "Toggle Pattern Enabled", "Toggle the enabled state of selected pattern headers", EUserInterfaceActionType::Button, FInputChord(EKeys::E));
+	}
+
+	TSharedPtr<FUICommandInfo> TogglePatternEnabled;
+};
+
 const FName FPCGExConnectorPatternEditor::GraphTabId = FName("ConnectorPatternGraphTab");
 const FName FPCGExConnectorPatternEditor::DetailsTabId = FName("ConnectorPatternDetailsTab");
 
@@ -340,6 +362,13 @@ void FPCGExConnectorPatternEditor::BindGraphCommands()
 	GraphEditorCommands->MapAction(
 		FGraphEditorCommands::Get().CreateComment,
 		FExecuteAction::CreateSP(this, &FPCGExConnectorPatternEditor::OnCreateComment));
+
+	// Toggle Pattern Enabled (E key)
+	FPCGExConnectorPatternCommands::Register();
+	GraphEditorCommands->MapAction(
+		FPCGExConnectorPatternCommands::Get().TogglePatternEnabled,
+		FExecuteAction::CreateSP(this, &FPCGExConnectorPatternEditor::ToggleSelectedPatternEnabled),
+		FCanExecuteAction::CreateSP(this, &FPCGExConnectorPatternEditor::CanTogglePatternEnabled));
 }
 
 void FPCGExConnectorPatternEditor::DeleteSelectedNodes()
@@ -527,6 +556,35 @@ void FPCGExConnectorPatternEditor::OnCreateComment()
 	PatternGraph->NotifyGraphChanged();
 }
 
+void FPCGExConnectorPatternEditor::ToggleSelectedPatternEnabled()
+{
+	if (!GraphEditorWidget.IsValid() || !PatternGraph) { return; }
+
+	const FScopedTransaction Transaction(INVTEXT("Toggle Pattern Enabled"));
+
+	for (UObject* NodeObj : GraphEditorWidget->GetSelectedNodes())
+	{
+		if (UPCGExConnectorPatternHeaderNode* Header = Cast<UPCGExConnectorPatternHeaderNode>(NodeObj))
+		{
+			Header->Modify();
+			Header->bEnabled = !Header->bEnabled;
+		}
+	}
+
+	PatternGraph->NotifyGraphChanged();
+}
+
+bool FPCGExConnectorPatternEditor::CanTogglePatternEnabled() const
+{
+	if (!GraphEditorWidget.IsValid()) { return false; }
+
+	for (UObject* NodeObj : GraphEditorWidget->GetSelectedNodes())
+	{
+		if (Cast<UPCGExConnectorPatternHeaderNode>(NodeObj)) { return true; }
+	}
+	return false;
+}
+
 void FPCGExConnectorPatternEditor::SaveAsset_Execute()
 {
 	// Ensure compiled before save, then regenerate PCG
@@ -539,3 +597,5 @@ void FPCGExConnectorPatternEditor::SaveAsset_Execute()
 }
 
 #pragma endregion
+
+#undef LOCTEXT_NAMESPACE

@@ -66,6 +66,42 @@ void UPCGExConnectorPatternGraph::CompileGraphToAsset()
 
 	for (const UPCGExConnectorPatternHeaderNode* Header : Headers)
 	{
+		// Skip disabled patterns — but still claim their entries so they don't trigger orphan warnings
+		if (!Header->bEnabled)
+		{
+			const UEdGraphPin* DisabledRootOut = Header->FindPin(TEXT("RootOut"), EGPD_Output);
+			if (DisabledRootOut)
+			{
+				for (const UEdGraphPin* LinkedPin : DisabledRootOut->LinkedTo)
+				{
+					if (UPCGExConnectorPatternGraphNode* Entry = Cast<UPCGExConnectorPatternGraphNode>(LinkedPin->GetOwningNode()))
+					{
+						// Flood-fill to claim entire disabled subgraph
+						TArray<UPCGExConnectorPatternGraphNode*> DisabledStack;
+						DisabledStack.Add(Entry);
+						while (DisabledStack.Num() > 0)
+						{
+							UPCGExConnectorPatternGraphNode* Current = DisabledStack.Pop();
+							if (ClaimedEntries.Contains(Current)) { continue; }
+							ClaimedEntries.Add(Current);
+							for (const UEdGraphPin* Pin : Current->Pins)
+							{
+								if (Pin->PinType.PinCategory == UPCGExConnectorPatternGraphNode::PatternRootPinCategory) { continue; }
+								for (const UEdGraphPin* Linked : Pin->LinkedTo)
+								{
+									if (UPCGExConnectorPatternGraphNode* Neighbor = Cast<UPCGExConnectorPatternGraphNode>(Linked->GetOwningNode()))
+									{
+										if (!ClaimedEntries.Contains(Neighbor)) { DisabledStack.Add(Neighbor); }
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			continue;
+		}
+
 		// Follow Root output pin to find the connected entry node (match center)
 		const UEdGraphPin* RootOutPin = Header->FindPin(TEXT("RootOut"), EGPD_Output);
 		if (!RootOutPin || RootOutPin->LinkedTo.Num() == 0) { continue; } // Unwired header — silently skip (WIP state)

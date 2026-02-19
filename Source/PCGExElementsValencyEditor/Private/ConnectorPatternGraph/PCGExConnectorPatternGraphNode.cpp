@@ -457,15 +457,21 @@ void UPCGExConnectorPatternHeaderNode::AllocateDefaultPins()
 
 FText UPCGExConnectorPatternHeaderNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
+	const FString Prefix = bEnabled ? TEXT("") : TEXT("[OFF] ");
+
 	if (!PatternName.IsNone())
 	{
-		return FText::FromString(FString::Printf(TEXT("Pattern: %s"), *PatternName.ToString()));
+		return FText::FromString(FString::Printf(TEXT("%sPattern: %s"), *Prefix, *PatternName.ToString()));
 	}
-	return INVTEXT("Pattern");
+	return FText::FromString(FString::Printf(TEXT("%sPattern"), *Prefix));
 }
 
 FLinearColor UPCGExConnectorPatternHeaderNode::GetNodeTitleColor() const
 {
+	if (!bEnabled)
+	{
+		return FLinearColor(0.35f, 0.35f, 0.35f); // Gray when disabled
+	}
 	return FLinearColor(0.6f, 0.3f, 0.9f); // Purple accent
 }
 

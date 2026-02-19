@@ -67,6 +67,8 @@ private:
 	void DuplicateSelectedNodes();
 	void SelectAllNodes();
 	void OnCreateComment();
+	void ToggleSelectedPatternEnabled();
+	bool CanTogglePatternEnabled() const;
 
 	/** Tab IDs */
 	static const FName GraphTabId;
