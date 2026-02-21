@@ -129,7 +129,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** When enabled (editor only), spawn ALevelInstance actors instead of raw streaming levels.
 	 *  Gives proper inspector grouping with collapsible entries in the World Outliner.
-	 *  Falls back to streaming in cooked builds. */
+	 *  Falls back to streaming if executed in cooked builds. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(PCG_Overridable))
 	bool bSpawnAsLevelInstance = false;
 
@@ -139,6 +139,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(PCG_Overridable, EditCondition="bSpawnAsLevelInstance"))
 	TSubclassOf<ALevelInstance> LevelInstanceClass;
 #endif
+
+	/** Suppress the warning emitted when Spawn As Level Instance is enabled but the
+	 *  component uses Generate At Runtime (which forces a fallback to streaming levels). */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Warnings and Errors")
+	bool bQuietRuntimeFallbackWarning = false;
 };
 
 struct FPCGExStagingLoadLevelContext final : FPCGExPointsProcessorContext
@@ -200,6 +205,10 @@ namespace PCGExStagingLoadLevel
 #if WITH_EDITOR
 		/** Cached folder path for organizing spawned actors, computed on first spawn */
 		FName CachedFolderPath;
+
+		/** Resolved at first spawn: true if using ALevelInstance path, false for streaming.
+		 *  Forced to false for runtime components since their output is transient. */
+		bool bUseLevelInstance = false;
 
 		/** Managed resource for ALevelInstance cleanup via PCG's native resource tracking */
 		UPCGManagedActors* ManagedLevelInstances = nullptr;

@@ -355,7 +355,18 @@ namespace PCGExStagingLoadLevel
 			// Compute folder path once (game thread, safe to access actor labels)
 			ComputeFolderPath();
 
-			if (Settings->bSpawnAsLevelInstance)
+			// ALevelInstance actors persist across save/load — skip for runtime components
+			// whose output is transient and would otherwise leave stale actors in the level.
+			bUseLevelInstance = Settings->bSpawnAsLevelInstance
+				&& SourceComponent->GenerationTrigger != EPCGComponentGenerationTrigger::GenerateAtRuntime;
+
+			if (Settings->bSpawnAsLevelInstance && !bUseLevelInstance && !Settings->bQuietRuntimeFallbackWarning)
+			{
+				PCGE_LOG_C(Warning, GraphAndLog, ExecutionContext,
+					LOCTEXT("RuntimeFallback", "Spawn As Level Instance is enabled but the component uses Generate At Runtime. Falling back to streaming levels."));
+			}
+
+			if (bUseLevelInstance)
 			{
 				ManagedLevelInstances = NewObject<UPCGManagedActors>(SourceComponent);
 			}
@@ -367,7 +378,7 @@ namespace PCGExStagingLoadLevel
 		}
 
 #if WITH_EDITOR
-		if (Settings->bSpawnAsLevelInstance)
+		if (bUseLevelInstance)
 		{
 			SpawnAsLevelInstance(Request);
 
