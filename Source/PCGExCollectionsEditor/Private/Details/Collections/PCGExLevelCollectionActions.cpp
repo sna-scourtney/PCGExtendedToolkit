@@ -129,7 +129,7 @@ UClass* FPCGExLevelCollectionActions::GetSupportedClass() const
 
 FColor FPCGExLevelCollectionActions::GetTypeColor() const
 {
-	return FColor(142, 180, 67);
+	return FColor(255, 156, 0);
 }
 
 uint32 FPCGExLevelCollectionActions::GetCategories()
