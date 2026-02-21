@@ -183,7 +183,7 @@ TSharedPtr<PCGExPathInclusion::FHandler> UPCGExPolyPathFilterFactory::CreateHand
 	return Handler;
 }
 
-// Static matching path: uses Test(UPCGData*, ...) which reads MatchableSourceFirstElements[0] — always the
+// Static matching path: uses Test(UPCGData*, ...) which reads MatchableSourceFirstElements[0] -- always the
 // first point of the input. Suitable for collection-level proxy evaluation (bCheckAgainstDataBounds) or when
 // no matching is configured. For per-point evaluation with attribute-based rules, filters create their own
 // FDataMatcher and call Test(FConstPoint, ...) per-point instead of using this method.

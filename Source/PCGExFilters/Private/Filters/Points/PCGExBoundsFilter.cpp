@@ -339,7 +339,7 @@ bool PCGExPointFilter::FBoundsFilter::Test(const int32 PointIndex) const
 
 	if (InverseMatcher)
 	{
-		// Per-point matching — build a filtered collections list for this specific point.
+		// Per-point matching -- build a filtered collections list for this specific point.
 		// Unlike other filters that build an exclude set, bounds uses an include list since
 		// TestPoint iterates collections directly (no octree intermediary with data pointers).
 		PCGExData::FConstPoint Pt = PointDataFacade->Source->GetInPoint(PointIndex);

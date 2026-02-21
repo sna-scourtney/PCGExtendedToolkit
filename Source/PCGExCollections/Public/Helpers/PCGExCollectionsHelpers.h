@@ -210,7 +210,7 @@ namespace PCGExCollections
 	 *
 	 * IMPORTANT: Packed hashes contain RAW Entries array indices (not cache-adjusted).
 	 * Resolution uses GetEntryRaw(), not GetEntryAt(). This distinction matters when
-	 * entries with Weight=0 are excluded from the cache — raw indices remain stable
+	 * entries with Weight=0 are excluded from the cache -- raw indices remain stable
 	 * while cache indices shift.
 	 *
 	 * Used by all consumption nodes: LoadPCGData, LoadProperties, LoadSockets,
@@ -282,8 +282,8 @@ namespace PCGExCollections
 	 * to the correct one based on point index.
 	 *
 	 * Two modes:
-	 * - Single source: Init(Collection) — all points share one collection
-	 * - Mapped source: Init(Map, Keys) — each point has a hash key that maps to
+	 * - Single source: Init(Collection) -- all points share one collection
+	 * - Mapped source: Init(Map, Keys) -- each point has a hash key that maps to
 	 *   a different collection (loaded via TAssetLoader from per-point path attributes)
 	 *
 	 * MicroHelper is automatically created for mesh collections (material variant picking).

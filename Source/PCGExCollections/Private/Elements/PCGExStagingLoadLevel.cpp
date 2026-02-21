@@ -18,6 +18,24 @@
 PCGEX_INITIALIZE_ELEMENT(StagingLoadLevel)
 PCGEX_ELEMENT_BATCH_POINT_IMPL(StagingLoadLevel)
 
+#pragma region UPCGExManagedStreamingLevels
+
+bool UPCGExManagedStreamingLevels::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+{
+	for (const TWeakObjectPtr<ULevelStreamingDynamic>& WeakLevel : StreamingLevels)
+	{
+		if (ULevelStreamingDynamic* Level = WeakLevel.Get())
+		{
+			Level->SetIsRequestingUnloadAndRemoval(true);
+		}
+	}
+
+	StreamingLevels.Reset();
+	return true;
+}
+
+#pragma endregion
+
 #pragma region UPCGExLevelStreamingDynamic
 
 void UPCGExLevelStreamingDynamic::OnLevelLoadedChanged(ULevel* Level)
@@ -28,14 +46,76 @@ void UPCGExLevelStreamingDynamic::OnLevelLoadedChanged(ULevel* Level)
 
 	for (AActor* Actor : Level->Actors)
 	{
-		if (Actor && Actor->bIsMainWorldOnly)
+		if (!Actor) { continue; }
+
+		if (Actor->bIsMainWorldOnly)
 		{
 			Actor->Destroy();
+			continue;
 		}
+
+#if WITH_EDITOR
+		if (GeneratedFolderPath != NAME_None)
+		{
+			Actor->SetFolderPath(GeneratedFolderPath);
+		}
+#endif
 	}
 }
 
 #pragma endregion
+
+#pragma region UPCGExLevelStreamingLevelInstance
+
+void UPCGExLevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* Level)
+{
+	Super::OnLevelLoadedChanged(Level);
+
+	if (!Level) { return; }
+
+#if WITH_EDITOR
+	// Read folder path from the owning level instance actor
+	FName GeneratedFolder = NAME_None;
+	if (ILevelInstanceInterface* LevelInstance = GetLevelInstance())
+	{
+		if (const APCGExLevelInstance* OwnerInstance = Cast<APCGExLevelInstance>(Cast<AActor>(LevelInstance)))
+		{
+			GeneratedFolder = OwnerInstance->GeneratedFolderPath;
+		}
+	}
+#endif
+
+	for (AActor* Actor : Level->Actors)
+	{
+		if (!Actor) { continue; }
+
+		if (Actor->bIsMainWorldOnly)
+		{
+			Actor->Destroy();
+			continue;
+		}
+
+#if WITH_EDITOR
+		if (GeneratedFolder != NAME_None)
+		{
+			Actor->SetFolderPath(GeneratedFolder);
+		}
+#endif
+	}
+}
+
+#pragma endregion
+
+#pragma region APCGExLevelInstance
+
+TSubclassOf<ULevelStreamingLevelInstance> APCGExLevelInstance::GetLevelStreamingClass() const
+{
+	return UPCGExLevelStreamingLevelInstance::StaticClass();
+}
+
+#pragma endregion
+
+#pragma region UPCGExStagingLoadLevelSettings
 
 TArray<FPCGPinProperties> UPCGExStagingLoadLevelSettings::InputPinProperties() const
 {
@@ -43,6 +123,10 @@ TArray<FPCGPinProperties> UPCGExStagingLoadLevelSettings::InputPinProperties() c
 	PCGEX_PIN_PARAM(PCGExCollections::Labels::SourceCollectionMapLabel, "Collection map information from, or merged from, Staging nodes.", Required)
 	return PinProperties;
 }
+
+#pragma endregion
+
+#pragma region FPCGExStagingLoadLevelElement
 
 bool FPCGExStagingLoadLevelElement::Boot(FPCGExContext* InContext) const
 {
@@ -85,6 +169,10 @@ bool FPCGExStagingLoadLevelElement::AdvanceWork(FPCGExContext* InContext, const 
 	Context->MainPoints->StageOutputs();
 	return Context->TryComplete();
 }
+
+#pragma endregion
+
+#pragma region PCGExStagingLoadLevel::FProcessor
 
 namespace PCGExStagingLoadLevel
 {
@@ -136,7 +224,7 @@ namespace PCGExStagingLoadLevel
 			{
 				// TODO : Move to TScopedArray instead
 				FWriteScopeLock WriteLock(RequestLock);
-				SpawnRequests.Emplace(World, LevelPath.GetLongPackageName(), Transforms[Index], Index);
+				SpawnRequests.Emplace(World, LevelPath.GetLongPackageName(), LevelPath, Transforms[Index], Index);
 			}
 		}
 	}
@@ -147,8 +235,8 @@ namespace PCGExStagingLoadLevel
 		// FTimeSlicedMainThreadLoop ensures spawning happens on the game thread.
 
 		// TODO : Collapse SpawnRequests TScopedArray here
-		
-		
+
+
 		if (SpawnRequests.IsEmpty())
 		{
 			bIsProcessorValid = false;
@@ -166,6 +254,90 @@ namespace PCGExStagingLoadLevel
 		PCGEX_ASYNC_HANDLE_CHKD_VOID(TaskManager, MainThreadLoop)
 	}
 
+#if WITH_EDITOR
+	void FProcessor::ComputeFolderPath()
+	{
+		// Match native PCG convention: {OwnerFolder}/{OwnerLabel}_Generated
+		const UPCGComponent* Component = ExecutionContext->GetComponent();
+		if (!Component) { return; }
+
+		const AActor* Owner = Component->GetOwner();
+		if (!Owner) { return; }
+
+		TStringBuilderWithBuffer<TCHAR, 1024> FolderBuilder;
+
+		const FName OwnerFolder = Owner->GetFolderPath();
+		if (OwnerFolder != NAME_None)
+		{
+			FolderBuilder << OwnerFolder.ToString() << TEXT("/");
+		}
+
+		FolderBuilder << Owner->GetActorNameOrLabel() << TEXT("_Generated");
+		CachedFolderPath = FName(FolderBuilder.ToString());
+	}
+
+	void FProcessor::SpawnAsLevelInstance(FLevelSpawnRequest& Request)
+	{
+		UWorld* World = Request.Params.World;
+		if (!World) { return; }
+
+		// Resolve actor class — user override or our default
+		UClass* ActorClass = Settings->LevelInstanceClass.Get();
+		if (!ActorClass) { ActorClass = APCGExLevelInstance::StaticClass(); }
+
+		// Defer construction so we can set WorldAsset BEFORE PostRegisterAllComponents.
+		// The registration flow (PostRegisterAllComponents → RegisterLevelInstance → LoadLevelInstance)
+		// only triggers loading if WorldAsset is already valid at that point.
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.bDeferConstruction = true;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		ALevelInstance* LevelInstanceActor = World->SpawnActor<ALevelInstance>(
+			ActorClass,
+			Request.Params.LevelTransform,
+			SpawnParams);
+
+		if (!LevelInstanceActor)
+		{
+			PCGE_LOG_C(Warning, GraphAndLog, ExecutionContext,
+				FText::Format(LOCTEXT("FailedToSpawnLevelInstance", "Failed to spawn ALevelInstance for '{0}' at point {1}"),
+					FText::FromString(Request.Params.LongPackageName), FText::AsNumber(Request.PointIndex)));
+			return;
+		}
+
+		// Pass folder path to our subclass so its streaming level can apply it
+		if (APCGExLevelInstance* PCGExInstance = Cast<APCGExLevelInstance>(LevelInstanceActor))
+		{
+			PCGExInstance->GeneratedFolderPath = CachedFolderPath;
+		}
+
+		// Set world asset BEFORE finishing construction
+		// FinishSpawning → PostRegisterAllComponents → RegisterLevelInstance → LoadLevelInstance
+		// will see a valid WorldAsset and actually trigger the level streaming.
+		const TSoftObjectPtr<UWorld> WorldAsset(Request.LevelPath);
+		LevelInstanceActor->SetWorldAsset(WorldAsset);
+
+		// Organize in folder
+		if (CachedFolderPath != NAME_None)
+		{
+			LevelInstanceActor->SetFolderPath(CachedFolderPath);
+		}
+
+		// Finish spawning -- registers components
+		LevelInstanceActor->FinishSpawning(Request.Params.LevelTransform);
+
+		// Trigger level loading via the same path the editor uses when WorldAsset changes
+		// (PostRegisterAllComponents has a GUID check that doesn't fire for editor-spawned actors)
+		LevelInstanceActor->UpdateLevelInstanceFromWorldAsset();
+
+		// Track via PCG managed resources -- engine handles cleanup on re-execution
+		if (ManagedLevelInstances)
+		{
+			ManagedLevelInstances->GetMutableGeneratedActors().Add(LevelInstanceActor);
+		}
+	}
+#endif
+
 	void FProcessor::SpawnLevelInstance(const int32 RequestIndex)
 	{
 		// This runs on the game thread via FTimeSlicedMainThreadLoop
@@ -174,45 +346,59 @@ namespace PCGExStagingLoadLevel
 
 		const FString& BaseSuffix = Settings->LevelNameSuffix;
 
-		// On first iteration, clean up previously spawned levels
+		UPCGComponent* SourceComponent = ExecutionContext->GetMutableComponent();
+
+		// On first iteration, create managed resources for PCG cleanup tracking
 		if (RequestIndex == 0)
 		{
-			UWorld* World = Request.Params.World;
+#if WITH_EDITOR
+			// Compute folder path once (game thread, safe to access actor labels)
+			ComputeFolderPath();
 
-			// Mark tracked levels for unload
-			for (const TWeakObjectPtr<ULevelStreamingDynamic>& WeakLevel : Context->SpawnedStreamingLevels)
-			{
-				if (ULevelStreamingDynamic* OldLevel = WeakLevel.Get())
-				{
-					OldLevel->SetIsRequestingUnloadAndRemoval(true);
-				}
-			}
-			Context->SpawnedStreamingLevels.Reset();
+			// ALevelInstance actors persist across save/load — skip for runtime components
+			// whose output is transient and would otherwise leave stale actors in the level.
+			bUseLevelInstance = Settings->bSpawnAsLevelInstance
+				&& SourceComponent->GenerationTrigger != EPCGComponentGenerationTrigger::GenerateAtRuntime;
 
-			// Scan for orphaned levels matching our suffix pattern
-			TArray<ULevelStreaming*> OrphanedLevels;
-			const FString SuffixPattern = BaseSuffix + TEXT("_");
-			for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+			if (Settings->bSpawnAsLevelInstance && !bUseLevelInstance && !Settings->bQuietRuntimeFallbackWarning)
 			{
-				if (!StreamingLevel) { continue; }
-				if (StreamingLevel->GetWorldAssetPackageName().Contains(SuffixPattern))
-				{
-					OrphanedLevels.Add(StreamingLevel);
-				}
+				PCGE_LOG_C(Warning, GraphAndLog, ExecutionContext,
+					LOCTEXT("RuntimeFallback", "Spawn As Level Instance is enabled but the component uses Generate At Runtime. Falling back to streaming levels."));
 			}
 
-			for (ULevelStreaming* OrphanedLevel : OrphanedLevels)
+			if (bUseLevelInstance)
 			{
-				OrphanedLevel->SetIsRequestingUnloadAndRemoval(true);
+				ManagedLevelInstances = NewObject<UPCGManagedActors>(SourceComponent);
+			}
+			else
+#endif
+			{
+				ManagedStreamingLevels = NewObject<UPCGExManagedStreamingLevels>(SourceComponent);
 			}
 		}
+
+#if WITH_EDITOR
+		if (bUseLevelInstance)
+		{
+			SpawnAsLevelInstance(Request);
+
+			// Register managed actors with PCG after the last spawn
+			if (RequestIndex == SpawnRequests.Num() - 1 && ManagedLevelInstances)
+			{
+				SourceComponent->AddToManagedResources(ManagedLevelInstances);
+			}
+
+			return;
+		}
+#endif
 
 		const FString InstanceSuffix = FString::Printf(TEXT("%s_%u_%d"), *BaseSuffix, Generation, Request.PointIndex);
 		Request.Params.OptionalLevelNameOverride = &InstanceSuffix;
 
 		// Use our subclass that destroys bIsMainWorldOnly actors when the level finishes loading
 		// (LoadLevelInstance doesn't go through World Partition, so engine won't filter them)
-		Request.Params.OptionalLevelStreamingClass = UPCGExLevelStreamingDynamic::StaticClass();
+		UClass* StreamingClass = Settings->StreamingLevelClass.Get();
+		Request.Params.OptionalLevelStreamingClass = StreamingClass ? StreamingClass : UPCGExLevelStreamingDynamic::StaticClass();
 
 		bool bOutSuccess = false;
 		ULevelStreamingDynamic* StreamingLevel = ULevelStreamingDynamic::LoadLevelInstance(Request.Params, bOutSuccess);
@@ -225,9 +411,29 @@ namespace PCGExStagingLoadLevel
 			return;
 		}
 
-		Context->SpawnedStreamingLevels.Add(StreamingLevel);
+		if (UPCGExLevelStreamingDynamic* PCGExStreaming = Cast<UPCGExLevelStreamingDynamic>(StreamingLevel))
+		{
+			PCGExStreaming->OwnerSuffix = BaseSuffix;
+#if WITH_EDITOR
+			PCGExStreaming->GeneratedFolderPath = CachedFolderPath;
+#endif
+		}
+
+		// Track via PCG managed resources -- PCG handles cleanup on re-execution
+		if (ManagedStreamingLevels)
+		{
+			ManagedStreamingLevels->StreamingLevels.Add(StreamingLevel);
+		}
+
+		// Register managed streaming levels with PCG after the last spawn
+		if (RequestIndex == SpawnRequests.Num() - 1 && ManagedStreamingLevels)
+		{
+			SourceComponent->AddToManagedResources(ManagedStreamingLevels);
+		}
 	}
 }
+
+#pragma endregion
 
 #undef LOCTEXT_NAMESPACE
 #undef PCGEX_NAMESPACE

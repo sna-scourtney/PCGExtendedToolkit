@@ -27,10 +27,10 @@ struct FPCGExAssetCollectionEntry;
  *   3. Your collection's GetTypeId() should return your FTypeId.
  *
  * Querying:
- *   FTypeRegistry::Get().Find(TypeIds::Mesh)       — get FTypeInfo by ID
- *   FTypeRegistry::Get().FindByClass(UClass*)       — reverse lookup from UClass
- *   FTypeRegistry::Get().IsA(Mesh, Base)            — inheritance check
- *   Entry->IsType(TypeIds::Mesh)                    — check entry type
+ *   FTypeRegistry::Get().Find(TypeIds::Mesh)       -- get FTypeInfo by ID
+ *   FTypeRegistry::Get().FindByClass(UClass*)       -- reverse lookup from UClass
+ *   FTypeRegistry::Get().IsA(Mesh, Base)            -- inheritance check
+ *   Entry->IsType(TypeIds::Mesh)                    -- check entry type
  */
 
 namespace PCGExAssetCollection

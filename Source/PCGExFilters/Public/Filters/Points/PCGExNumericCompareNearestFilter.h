@@ -119,7 +119,7 @@ namespace PCGExPointFilter
 		TSet<const UPCGData*> IgnoreList; // Self-ignore only (this filter has no static matching path)
 		bool bMatchingFailed = false;
 
-		// Per-point matching — see FDistanceFilter for full explanation
+		// Per-point matching -- see FDistanceFilter for full explanation
 		TSharedPtr<PCGExMatching::FDataMatcher> InverseMatcher;
 		TArray<FPCGExTaggedData> TargetCandidates;
 		bool bNoMatchResult = false;
