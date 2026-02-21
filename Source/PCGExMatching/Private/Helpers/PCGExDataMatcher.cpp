@@ -318,7 +318,7 @@ namespace PCGExMatching
 		const TArray<FPCGExTaggedData>& InCandidates,
 		TSet<const UPCGData*>& OutExclude) const
 	{
-		InPoint.IO = 0; // Single MatchableSource — indexes into per-source getter arrays
+		InPoint.IO = 0; // Single MatchableSource -- indexes into per-source getter arrays
 
 		bool bAnyMatch = false;
 		for (const FPCGExTaggedData& Candidate : InCandidates)

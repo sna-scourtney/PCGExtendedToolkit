@@ -102,7 +102,7 @@ bool PCGExPointFilter::FNumericCompareNearestFilter::Init(FPCGExContext* InConte
 
 	if (bMatchingEnabled)
 	{
-		// Always per-point (no bCheckAgainstDataBounds — this filter doesn't support collection eval)
+		// Always per-point (no bCheckAgainstDataBounds -- this filter doesn't support collection eval)
 		InverseMatcher = MakeShared<PCGExMatching::FDataMatcher>();
 		InverseMatcher->SetDetails(&TypedFilterFactory->Config.DataMatching);
 

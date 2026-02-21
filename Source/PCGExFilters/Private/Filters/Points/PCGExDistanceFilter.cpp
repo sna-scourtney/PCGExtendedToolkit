@@ -80,7 +80,7 @@ bool PCGExPointFilter::FDistanceFilter::Init(FPCGExContext* InContext, const TSh
 	//    each target candidate individually via FDataMatcher::Test(FConstPoint, ...). This produces a
 	//    per-point exclude set so e.g. point[2] with Mod=2 only sees targets tagged Mod:2.
 	//  - Static (bCheckAgainstDataBounds): Uses PopulateIgnoreListInverse which calls
-	//    FDataMatcher::Test(UPCGData*, ...) — this reads from the first point only (MatchableSourceFirstElements[0]).
+	//    FDataMatcher::Test(UPCGData*, ...) -- this reads from the first point only (MatchableSourceFirstElements[0]).
 	//    Correct for collection-level proxy evaluation where a single representative value is expected.
 
 	if (bMatchingEnabled && !TypedFilterFactory->Config.bCheckAgainstDataBounds)

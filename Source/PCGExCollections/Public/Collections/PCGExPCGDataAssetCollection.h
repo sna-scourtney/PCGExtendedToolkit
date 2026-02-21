@@ -103,7 +103,7 @@ struct PCGEXCOLLECTIONS_API FPCGExPCGDataAssetCollectionEntry : public FPCGExAss
 };
 
 /** Concrete collection for UPCGDataAsset references. Minimal extension like the
- *  actor collection — no extra global settings beyond the base class. */
+ *  actor collection -- no extra global settings beyond the base class. */
 UCLASS(BlueprintType, DisplayName="[PCGEx] Collection | PCGDataAsset")
 class PCGEXCOLLECTIONS_API UPCGExPCGDataAssetCollection : public UPCGExAssetCollection
 {

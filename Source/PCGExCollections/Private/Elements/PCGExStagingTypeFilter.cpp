@@ -1,4 +1,4 @@
-// Copyright 2026 Timothé Lapetite and contributors
+﻿// Copyright 2026 Timothé Lapetite and contributors
 // Released under the MIT license https://opensource.org/license/MIT/
 
 #include "Elements/PCGExStagingTypeFilter.h"
@@ -454,7 +454,7 @@ namespace PCGExStagedTypeFilter
 
 		if (SingleBucket >= 0)
 		{
-			// All points in one bucket — Forward (zero-copy)
+			// All points in one bucket -- Forward (zero-copy)
 			if (SingleBucket == UnmatchedIdx)
 			{
 				if (Context->UnmatchedOutput)
@@ -469,7 +469,7 @@ namespace PCGExStagedTypeFilter
 			return;
 		}
 
-		// Mixed distribution — create new outputs per bucket
+		// Mixed distribution -- create new outputs per bucket
 		for (int32 i = 0; i < NumBuckets; i++)
 		{
 			if (BucketCounts[i] <= 0) { continue; }

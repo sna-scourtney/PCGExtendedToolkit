@@ -133,7 +133,7 @@ namespace PCGExPointFilter
 		const TObjectPtr<const UPCGExTimeFilterFactory> TypedFilterFactory;
 		TSharedPtr<PCGExPathInclusion::FHandler> Handler;
 
-		// Per-point matching — see FDistanceFilter for full explanation.
+		// Per-point matching -- see FDistanceFilter for full explanation.
 		// Exclude set is used inline (not via FHandler) since Time checks MatchIgnoreList directly in its loops.
 		TSharedPtr<PCGExMatching::FDataMatcher> InverseMatcher;
 		bool bNoMatchResult = false;

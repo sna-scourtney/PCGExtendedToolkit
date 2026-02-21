@@ -137,7 +137,7 @@ namespace PCGExPointFilter
 		const TObjectPtr<const UPCGExInclusionFilterFactory> TypedFilterFactory;
 		TSharedPtr<PCGExPathInclusion::FHandler> Handler;
 
-		// Per-point matching — see FDistanceFilter for full explanation.
+		// Per-point matching -- see FDistanceFilter for full explanation.
 		// Exclude set is passed to FHandler via InAdditionalExclude (alongside static MatchIgnoreList).
 		TSharedPtr<PCGExMatching::FDataMatcher> InverseMatcher;
 		bool bNoMatchResult = false;

@@ -84,12 +84,12 @@ namespace PCGExMatching
 		bool Test(const UPCGData* InMatchableSource, const FPCGExTaggedData& InDataCandidate, FScope& InMatchingScope) const;
 
 		/** Point-level test: uses the provided point directly (reads attributes at that point's index).
-		 *  Use for per-point matching — caller must set FConstPoint.IO=0 when there is a single MatchableSource. */
+		 *  Use for per-point matching -- caller must set FConstPoint.IO=0 when there is a single MatchableSource. */
 		bool Test(const PCGExData::FConstPoint& InInMatchableElement, const FPCGExTaggedData& InDataCandidate, FScope& InMatchingScope) const;
 
 		bool PopulateIgnoreList(const FPCGExTaggedData& InDataCandidate, FScope& InMatchingScope, TSet<const UPCGData*>& OutIgnoreList) const;
 
-		/** Builds a static ignore list by testing each candidate via Test(UPCGData*, ...) — first point only.
+		/** Builds a static ignore list by testing each candidate via Test(UPCGData*, ...) -- first point only.
 		 *  For per-point filtering, call Test(FConstPoint, ...) per-point instead. */
 		bool PopulateIgnoreListFromCandidates(const TArray<FPCGExTaggedData>& InCandidates, FScope& InMatchingScope, TSet<const UPCGData*>& OutIgnoreList) const;
 

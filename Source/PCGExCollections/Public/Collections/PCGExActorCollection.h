@@ -15,7 +15,7 @@ class UPCGExActorCollection;
 
 /**
  * Actor collection entry. References an actor class (TSoftClassPtr<AActor>) or
- * a UPCGExActorCollection subcollection. Simpler than FPCGExMeshCollectionEntry —
+ * a UPCGExActorCollection subcollection. Simpler than FPCGExMeshCollectionEntry --
  * no MicroCache, no descriptors. UpdateStaging() spawns a temporary actor in-editor
  * to compute bounds (with configurable collision/child-actor inclusion).
  */
@@ -60,7 +60,7 @@ struct PCGEXCOLLECTIONS_API FPCGExActorCollectionEntry : public FPCGExAssetColle
 #endif
 };
 
-/** Concrete collection for actor classes. Minimal extension of the base — no extra
+/** Concrete collection for actor classes. Minimal extension of the base -- no extra
  *  global settings beyond what UPCGExAssetCollection provides. */
 UCLASS(BlueprintType, DisplayName="[PCGEx] Collection | Actor")
 class PCGEXCOLLECTIONS_API UPCGExActorCollection : public UPCGExAssetCollection
