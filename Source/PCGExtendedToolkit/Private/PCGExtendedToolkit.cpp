@@ -76,7 +76,11 @@ void FPCGExtendedToolkitModule::StartupModule()
 				// Soft refs into /Game won't drag the provider asset into the cook on their own.
 				InOutPackageCookRules.Emplace(Asset.PackageName, ProviderInstigator, UE::Cook::EPackageCookRule::AddToCook);
 
-				UObject* Obj = Asset.GetAsset();
+				UObject* Obj;
+				{
+					FCookLoadScope CookLoadScope(ECookLoadType::EditorOnly);
+					Obj = Asset.GetAsset();
+				}
 				if (!Obj) { continue; }
 
 				IPCGExCookDependencyProvider* Provider = Cast<IPCGExCookDependencyProvider>(Obj);
